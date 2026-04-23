@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard Solar — Conectsol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+/* =====================================================================
+   CSS Variables — light / dark themes
+   ===================================================================== */
+:root {
+  --bg:          #f0fdf4;
+  --bg2:         #ecfdf5;
+  --surface:     #ffffff;
+  --surface2:    #f8fafc;
+  --border:      #d1fae5;
+  --border2:     #a7f3d0;
+  --text:        #0f172a;
+  --text-muted:  #475569;
+  --text-light:  #94a3b8;
+  --accent:      #059669;
+  --accent-dark: #047857;
+  --accent-light:#d1fae5;
+  --gold:        #f59e0b;
+  --gold-bg:     #fffbeb;
+  --prata:       #64748b;
+  --prata-bg:    #f1f5f9;
+  --ok:          #16a34a;
+  --ok-bg:       #dcfce7;
+  --alerta:      #d97706;
+  --alerta-bg:   #fef3c7;
+  --falha:       #dc2626;
+  --falha-bg:    #fee2e2;
+  --offline:     #6b7280;
+  --offline-bg:  #f3f4f6;
+  --radius:      12px;
+  --radius-sm:   8px;
+  --shadow:      0 1px 4px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+  --shadow-md:   0 4px 16px rgba(0,0,0,.1);
+  --font:        'Inter', system-ui, sans-serif;
+  --transition:  all .2s ease;
+}
+[data-theme="dark"] {
+  --bg:          #0a0f1e;
+  --bg2:         #0f172a;
+  --surface:     #1a2332;
+  --surface2:    #1e2d3d;
+  --border:      #1e3a2f;
+  --border2:     #2d5a46;
+  --text:        #f0fdf4;
+  --text-muted:  #94a3b8;
+  --text-light:  #64748b;
+  --accent:      #10b981;
+  --accent-dark: #059669;
+  --accent-light:#064e3b;
+  --gold-bg:     #1c1500;
+  --prata-bg:    #1a1f2e;
+  --ok-bg:       #052e16;
+  --alerta-bg:   #1c0f00;
+  --falha-bg:    #1c0000;
+  --offline-bg:  #111827;
+  --shadow:      0 1px 4px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.2);
+}
+
+/* =====================================================================
+   Reset & Base
+   ===================================================================== */
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body {
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.5;
+  min-height:100vh;
+  transition:background .3s, color .3s;
+}
+a { color:var(--accent); text-decoration:none; }
+button { cursor:pointer; font-family:var(--font); border:none; }
+
+/* =====================================================================
+   Header
+   ===================================================================== */
+#header {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:16px 24px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+  position:sticky;
+  top:0;
+  z-index:100;
+  box-shadow:var(--shadow);
+}
+#header .logo {
+  width:40px; height:40px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-dark));
+  border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; flex-shrink:0;
+}
+#header .title-block { flex:1; min-width:160px; }
+#header h1 { font-size:18px; font-weight:700; color:var(--text); }
+#header .subtitle { font-size:12px; color:var(--text-muted); margin-top:1px; }
+#header .header-actions {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+#last-update {
+  font-size:12px; color:var(--text-muted);
+  background:var(--surface2);
+  padding:4px 10px; border-radius:20px;
+  border:1px solid var(--border);
+}
+.btn {
+  padding:8px 16px; border-radius:var(--radius-sm);
+  font-size:13px; font-weight:600;
+  transition:var(--transition);
+  display:inline-flex; align-items:center; gap:6px;
+}
+.btn-primary {
+  background:var(--accent); color:#fff;
+}
+.btn-primary:hover { background:var(--accent-dark); transform:translateY(-1px); }
+.btn-outline {
+  background:transparent; color:var(--text);
+  border:1px solid var(--border2);
+}
+.btn-outline:hover { background:var(--surface2); }
+#dark-toggle {
+  width:36px; height:36px; border-radius:50%;
+  background:var(--surface2); border:1px solid var(--border);
+  font-size:16px; display:flex; align-items:center; justify-content:center;
+  transition:var(--transition);
+}
+#dark-toggle:hover { background:var(--accent-light); }
+
+/* =====================================================================
+   Filter Bar
+   ===================================================================== */
+#filter-bar {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:12px 24px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.filter-group { display:flex; align-items:center; gap:6px; }
+.filter-group label {
+  font-size:12px; font-weight:600;
+  color:var(--text-muted); white-space:nowrap;
+}
+.filter-select, .filter-input {
+  padding:6px 10px;
+  border:1px solid var(--border2);
+  border-radius:var(--radius-sm);
+  background:var(--surface2);
+  color:var(--text);
+  font-size:13px;
+  font-family:var(--font);
+  transition:var(--transition);
+  min-width:110px;
+}
+.filter-select:focus, .filter-input:focus {
+  outline:none; border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(5,150,105,.15);
+}
+.filter-toggle {
+  padding:6px 12px;
+  border-radius:20px;
+  font-size:12px; font-weight:600;
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  color:var(--text-muted);
+  transition:var(--transition);
+}
+.filter-toggle.active {
+  background:var(--accent-light);
+  border-color:var(--accent);
+  color:var(--accent-dark);
+}
+#filter-status-wrap { display:flex; gap:6px; flex-wrap:wrap; }
+.status-chip {
+  padding:4px 10px;
+  border-radius:20px;
+  font-size:11px; font-weight:600;
+  border:1px solid transparent;
+  transition:var(--transition);
+  cursor:pointer;
+}
+.status-chip[data-s="normal"]      { background:var(--ok-bg); color:var(--ok); border-color:var(--ok); }
+.status-chip[data-s="alerta"]      { background:var(--alerta-bg); color:var(--alerta); border-color:var(--alerta); }
+.status-chip[data-s="falha"]       { background:var(--falha-bg); color:var(--falha); border-color:var(--falha); }
+.status-chip[data-s="offline"]     { background:var(--offline-bg); color:var(--offline); border-color:var(--offline); }
+.status-chip[data-s="desconhecido"]{ background:var(--surface2); color:var(--text-muted); border-color:var(--border2); }
+.status-chip.inactive { opacity:.35; }
+
+/* =====================================================================
+   Main content
+   ===================================================================== */
+#main { max-width:1440px; margin:0 auto; padding:24px; }
+
+/* =====================================================================
+   KPI Cards
+   ===================================================================== */
+#kpi-row {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+  gap:16px;
+  margin-bottom:24px;
+}
+.kpi-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px;
+  box-shadow:var(--shadow);
+  transition:var(--transition);
+  position:relative;
+  overflow:hidden;
+}
+.kpi-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); }
+.kpi-card::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:3px;
+  background:var(--kpi-color, var(--accent));
+}
+.kpi-icon {
+  font-size:22px; margin-bottom:8px;
+}
+.kpi-label {
+  font-size:11px; font-weight:600;
+  color:var(--text-muted); text-transform:uppercase;
+  letter-spacing:.5px; margin-bottom:6px;
+}
+.kpi-value {
+  font-size:26px; font-weight:800;
+  color:var(--text); line-height:1;
+}
+.kpi-unit { font-size:13px; font-weight:500; color:var(--text-muted); }
+.kpi-delta {
+  font-size:11px; margin-top:6px;
+  color:var(--text-muted);
+}
+
+/* =====================================================================
+   Section headers
+   ===================================================================== */
+.section-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px; flex-wrap:wrap; gap:8px;
+}
+.section-title {
+  font-size:15px; font-weight:700; color:var(--text);
+  display:flex; align-items:center; gap:8px;
+}
+.section-title::before {
+  content:'';
+  display:block; width:4px; height:18px;
+  background:var(--accent); border-radius:2px;
+}
+.toggle-group {
+  display:flex; background:var(--surface2);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  overflow:hidden;
+}
+.toggle-btn {
+  padding:5px 12px; font-size:12px; font-weight:600;
+  background:transparent; color:var(--text-muted);
+  border:none; transition:var(--transition);
+}
+.toggle-btn.active {
+  background:var(--accent); color:#fff;
+}
+
+/* =====================================================================
+   Chart Cards
+   ===================================================================== */
+.chart-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px;
+  box-shadow:var(--shadow);
+  margin-bottom:20px;
+}
+.chart-full { width:100%; }
+.chart-grid-2 {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  margin-bottom:20px;
+}
+.chart-grid-3 {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:20px;
+  margin-bottom:20px;
+}
+@media(max-width:1100px) {
+  .chart-grid-3 { grid-template-columns:1fr 1fr; }
+}
+@media(max-width:768px) {
+  .chart-grid-2, .chart-grid-3 { grid-template-columns:1fr; }
+  #kpi-row { grid-template-columns:repeat(2, 1fr); }
+  #filter-bar { padding:10px 16px; }
+  #main { padding:16px; }
+}
+.chart-canvas-wrap { position:relative; width:100%; }
+
+/* =====================================================================
+   Insights Section
+   ===================================================================== */
+#insights-section { margin-bottom:24px; }
+.insights-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));
+  gap:16px;
+}
+.insight-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px;
+  box-shadow:var(--shadow);
+}
+.insight-title {
+  font-size:13px; font-weight:700;
+  color:var(--text); margin-bottom:12px;
+  display:flex; align-items:center; gap:6px;
+}
+.insight-table { width:100%; border-collapse:collapse; font-size:12px; }
+.insight-table th {
+  text-align:left; padding:4px 8px;
+  color:var(--text-muted); font-weight:600;
+  border-bottom:1px solid var(--border); font-size:11px;
+}
+.insight-table td { padding:5px 8px; border-bottom:1px solid var(--border); }
+.insight-table tr:last-child td { border-bottom:none; }
+.insight-summary {
+  font-size:13px; color:var(--text-muted); line-height:1.7;
+  background:var(--bg2); padding:14px; border-radius:var(--radius-sm);
+  border-left:3px solid var(--accent);
+}
+
+/* =====================================================================
+   Data Table
+   ===================================================================== */
+#table-section { margin-bottom:40px; }
+.table-wrap { overflow-x:auto; }
+#data-table {
+  width:100%; border-collapse:collapse;
+  font-size:13px;
+}
+#data-table th {
+  padding:10px 12px;
+  text-align:left;
+  background:var(--surface2);
+  color:var(--text-muted);
+  font-size:11px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.4px;
+  border-bottom:2px solid var(--border);
+  cursor:pointer; user-select:none; white-space:nowrap;
+}
+#data-table th:hover { color:var(--accent); }
+#data-table th.sorted-asc::after { content:' ▲'; }
+#data-table th.sorted-desc::after { content:' ▼'; }
+#data-table td {
+  padding:10px 12px;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+#data-table tr:hover td { background:var(--surface2); }
+.badge {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:2px 8px; border-radius:20px;
+  font-size:11px; font-weight:600;
+}
+.badge-ok      { background:var(--ok-bg); color:var(--ok); }
+.badge-alerta  { background:var(--alerta-bg); color:var(--alerta); }
+.badge-falha   { background:var(--falha-bg); color:var(--falha); }
+.badge-offline { background:var(--offline-bg); color:var(--offline); }
+.badge-desc    { background:var(--surface2); color:var(--text-muted); }
+.badge-gold    { background:var(--gold-bg); color:var(--gold); }
+.badge-prata   { background:var(--prata-bg); color:var(--prata); }
+.tag-conectsol {
+  display:inline-block;
+  width:8px; height:8px; border-radius:50%;
+  background:var(--accent); margin-left:4px;
+  title:'Conectsol';
+}
+.pagination {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 0; flex-wrap:wrap; gap:8px;
+}
+.pagination-info { font-size:12px; color:var(--text-muted); }
+.pagination-btns { display:flex; gap:4px; }
+.page-btn {
+  width:32px; height:32px; border-radius:var(--radius-sm);
+  font-size:12px; font-weight:600;
+  background:var(--surface2); color:var(--text);
+  border:1px solid var(--border); transition:var(--transition);
+}
+.page-btn:hover, .page-btn.active {
+  background:var(--accent); color:#fff; border-color:var(--accent);
+}
+
+/* =====================================================================
+   Loading & Error States
+   ===================================================================== */
+#loading-overlay {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.5);
+  display:flex; align-items:center; justify-content:center;
+  z-index:999; backdrop-filter:blur(4px);
+}
+#loading-overlay.hidden { display:none; }
+.spinner-box {
+  background:var(--surface);
+  border-radius:var(--radius);
+  padding:32px 40px;
+  text-align:center;
+  box-shadow:var(--shadow-md);
+}
+.spinner {
+  width:48px; height:48px;
+  border:4px solid var(--border2);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+  margin:0 auto 16px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.spinner-text { font-size:14px; font-weight:600; color:var(--text-muted); }
+.error-banner {
+  background:var(--falha-bg);
+  border:1px solid var(--falha);
+  border-radius:var(--radius);
+  padding:16px 20px;
+  margin-bottom:20px;
+  display:flex; align-items:center; gap:12px;
+}
+.error-banner.hidden { display:none; }
+.error-banner-text { font-size:13px; color:var(--falha); flex:1; }
+
+/* =====================================================================
+   Gauge (pseudo-gauge via doughnut)
+   ===================================================================== */
+.gauge-value {
+  text-align:center; margin-top:-30px;
+  font-size:28px; font-weight:800;
+  color:var(--text);
+}
+.gauge-label {
+  text-align:center;
+  font-size:11px; color:var(--text-muted);
+  font-weight:600; text-transform:uppercase; letter-spacing:.5px;
+}
+
+/* =====================================================================
+   Heatmap (canvas-based custom)
+   ===================================================================== */
+#heatmap-canvas { border-radius:var(--radius-sm); }
+
+/* =====================================================================
+   Footer
+   ===================================================================== */
+#footer {
+  text-align:center;
+  padding:20px;
+  font-size:12px;
+  color:var(--text-muted);
+  border-top:1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="spinner-box">
+    <div class="spinner"></div>
+    <div class="spinner-text">Carregando dados...</div>
+  </div>
+</div>
+
+<!-- ===== HEADER ===== -->
+<div id="header">
+  <div class="logo">☀️</div>
+  <div class="title-block">
+    <h1>Dashboard Solar</h1>
+    <div class="subtitle">Monitoramento de Geração — Conectsol</div>
+  </div>
+  <div class="header-actions">
+    <div id="last-update">Última atualização: —</div>
+    <button class="btn btn-primary" onclick="refreshAll()">⟳ Atualizar Dados</button>
+    <button id="dark-toggle" onclick="toggleDark()" title="Alternar tema">🌙</button>
+    <button class="btn btn-outline" onclick="exportCSV()">⬇ Exportar CSV</button>
+  </div>
+</div>
+
+<!-- ===== ERROR BANNER ===== -->
+<div id="error-banner" class="error-banner hidden" style="margin:12px 24px 0;">
+  <span style="font-size:20px;">⚠️</span>
+  <span class="error-banner-text" id="error-text"></span>
+  <button class="btn btn-outline" style="flex-shrink:0;" onclick="refreshAll()">Tentar novamente</button>
+</div>
+
+<!-- ===== FILTER BAR ===== -->
+<div id="filter-bar">
+  <div class="filter-group">
+    <label>Período</label>
+    <select class="filter-select" id="f-period" onchange="applyFilters()">
+      <option value="hoje">Hoje</option>
+      <option value="7d">Últimos 7 dias</option>
+      <option value="mes">Mês atual</option>
+      <option value="mes-ant">Mês anterior</option>
+      <option value="all" selected>Todos</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Portal</label>
+    <select class="filter-select" id="f-portal" onchange="applyFilters()">
+      <option value="">Todos os portais</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Categoria</label>
+    <select class="filter-select" id="f-categoria" onchange="applyFilters()">
+      <option value="">Todas</option>
+      <option value="gold">Gold</option>
+      <option value="prata">Prata</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Status</label>
+    <div id="filter-status-wrap">
+      <span class="status-chip" data-s="normal"       onclick="toggleStatus(this)">Normal</span>
+      <span class="status-chip" data-s="alerta"       onclick="toggleStatus(this)">Alerta</span>
+      <span class="status-chip" data-s="falha"        onclick="toggleStatus(this)">Falha</span>
+      <span class="status-chip" data-s="offline"      onclick="toggleStatus(this)">Offline</span>
+      <span class="status-chip" data-s="desconhecido" onclick="toggleStatus(this)">Desconhecido</span>
+    </div>
+  </div>
+  <div class="filter-group">
+    <button class="filter-toggle" id="f-conectsol" onclick="toggleConectsolFilter()">⚡ Apenas Conectsol</button>
+  </div>
+  <div class="filter-group" style="margin-left:auto;">
+    <button class="btn btn-outline" style="font-size:12px;" onclick="clearFilters()">✕ Limpar filtros</button>
+  </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div id="main">
+
+  <!-- KPIs -->
+  <div id="kpi-row">
+    <div class="kpi-card" style="--kpi-color:var(--accent)">
+      <div class="kpi-icon">⚡</div>
+      <div class="kpi-label">Total Gerado Hoje</div>
+      <div class="kpi-value"><span id="kpi-ger-dia">—</span> <span class="kpi-unit">kWh</span></div>
+      <div class="kpi-delta" id="kpi-ger-dia-sub">—</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:#0ea5e9">
+      <div class="kpi-icon">🔋</div>
+      <div class="kpi-label">Potência Atual</div>
+      <div class="kpi-value"><span id="kpi-pot">—</span> <span class="kpi-unit">kW</span></div>
+      <div class="kpi-delta" id="kpi-pot-sub">—</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--gold)">
+      <div class="kpi-icon">🥇</div>
+      <div class="kpi-label">Clientes Gold</div>
+      <div class="kpi-value"><span id="kpi-gold">—</span></div>
+      <div class="kpi-delta" id="kpi-gold-sub">Monitoramento premium</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--prata)">
+      <div class="kpi-icon">🥈</div>
+      <div class="kpi-label">Clientes Prata</div>
+      <div class="kpi-value"><span id="kpi-prata">—</span></div>
+      <div class="kpi-delta" id="kpi-prata-sub">Monitoramento básico</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:#f43f5e">
+      <div class="kpi-icon">📋</div>
+      <div class="kpi-label">Usinas Conectsol</div>
+      <div class="kpi-value"><span id="kpi-sem-plano">—</span></div>
+      <div class="kpi-delta">Usinas próprias monitoradas</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--ok)">
+      <div class="kpi-icon">📈</div>
+      <div class="kpi-label">Performance Diária</div>
+      <div class="kpi-value"><span id="kpi-perf">—</span> <span class="kpi-unit">%</span></div>
+      <div class="kpi-delta">Ger. dia vs capacidade (4h pico)</div>
+      <div class="kpi-delta" id="kpi-perf-sub" style="margin-top:4px;font-size:10px;line-height:1.6;">—</div>
+    </div>
+  </div>
+
+  <!-- Histórico de geração (linha) -->
+  <div class="chart-card chart-full">
+    <div class="section-header">
+      <div class="section-title">Histórico de Geração</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <select id="f-hist-usina" class="filter-select" style="min-width:220px;font-size:12px;" onchange="setHistUsina()">
+          <option value="">Todas as usinas</option>
+        </select>
+        <div class="toggle-group">
+          <button class="toggle-btn active" onclick="setHistMode('dia',this)">Dia</button>
+          <button class="toggle-btn"        onclick="setHistMode('semana',this)">Semana</button>
+          <button class="toggle-btn"        onclick="setHistMode('mes',this)">Mês</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap" style="height:300px;">
+      <canvas id="chart-historico"></canvas>
+    </div>
+  </div>
+
+  <!-- Geração por usina + Gold vs Prata -->
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="section-header">
+        <div class="section-title">Geração por Usina (Hoje)</div>
+      </div>
+      <div class="chart-canvas-wrap" style="height:320px;">
+        <canvas id="chart-por-usina"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="section-header">
+        <div class="section-title">Gold vs Prata — Geração</div>
+      </div>
+      <div class="chart-canvas-wrap" style="height:320px;">
+        <canvas id="chart-gold-prata"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status rosca + Gauge + Por plataforma -->
+  <div class="chart-grid-3">
+    <div class="chart-card">
+      <div class="section-header">
+        <div class="section-title">Distribuição por Status</div>
+      </div>
+      <div class="chart-canvas-wrap" style="height:260px;">
+        <canvas id="chart-status"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="section-header">
+        <div class="section-title">Performance Geral</div>
+      </div>
+      <div class="chart-canvas-wrap" style="height:200px;">
+        <canvas id="chart-gauge"></canvas>
+      </div>
+      <div class="gauge-value" id="gauge-val">—%</div>
+      <div class="gauge-label">Capacidade utilizada</div>
+    </div>
+    <div class="chart-card">
+      <div class="section-header">
+        <div class="section-title">Geração por Plataforma</div>
+      </div>
+      <div class="chart-canvas-wrap" style="height:260px;">
+        <canvas id="chart-plataforma"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scatter + Top 10 Piores -->
+  <div class="chart-grid-2">
+    <div class="chart-card">
+      <div class="section-header">
+        <div class="section-title">Capacidade vs Geração Dia (Scatter)</div>
+      </div>
+      <div class="chart-canvas-wrap" style="height:320px;">
+        <canvas id="chart-scatter"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="section-header">
+        <div class="section-title">Top 10 Usinas com Menor Performance</div>
+      </div>
+      <div class="chart-canvas-wrap" style="height:320px;">
+        <canvas id="chart-piores"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="chart-card chart-full">
+    <div class="section-header">
+      <div class="section-title">Heatmap — Geração por Mês × Plataforma</div>
+    </div>
+    <div style="overflow-x:auto;">
+      <canvas id="heatmap-canvas" style="min-width:400px;"></canvas>
+    </div>
+  </div>
+
+  <!-- Status das Plataformas -->
+  <div id="plataformas-section" style="margin-bottom:24px;">
+    <div class="section-header" style="margin-bottom:16px;">
+      <div class="section-title">Status das Plataformas de Monitoramento</div>
+      <span id="plat-last-update" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>
+    <div id="plataformas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;"></div>
+  </div>
+
+  <!-- Insights -->
+  <div id="insights-section">
+    <div class="section-header" style="margin-bottom:16px;">
+      <div class="section-title">Insights Automáticos</div>
+    </div>
+    <div class="insights-grid">
+      <!-- card: top 10 geração -->
+      <div class="insight-card">
+        <div class="insight-title">🏆 Top 10 — Maior Geração Hoje</div>
+        <table class="insight-table" id="ins-top10">
+          <thead><tr><th>Usina</th><th>Portal</th><th>Ger Dia</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <!-- card: clientes por portal -->
+      <div class="insight-card">
+        <div class="insight-title">📡 Clientes por Portal</div>
+        <table class="insight-table" id="ins-portais">
+          <thead><tr><th>Portal</th><th>Qtd</th><th>%</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <!-- card: piores eficiência -->
+      <div class="insight-card">
+        <div class="insight-title">⚠️ Top 10 Piores — Eficiência vs Potencial</div>
+        <table class="insight-table" id="ins-piores">
+          <thead><tr><th>Usina</th><th>Cap kWp</th><th>Efic.</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <!-- card: sem monitoramento -->
+      <div class="insight-card">
+        <div class="insight-title">🔴 Sem Monitoramento Ativo</div>
+        <table class="insight-table" id="ins-sem-mon">
+          <thead><tr><th>Usina</th><th>Status</th><th>Portal</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <!-- card: planos resumo -->
+      <div class="insight-card">
+        <div class="insight-title">📊 Distribuição por Plano</div>
+        <div id="ins-planos" style="font-size:13px; line-height:2;"></div>
+      </div>
+      <!-- card: resumo executivo -->
+      <div class="insight-card">
+        <div class="insight-title">📝 Resumo Executivo</div>
+        <div class="insight-summary" id="ins-resumo">Aguardando dados...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Table -->
+  <div id="table-section">
+    <div class="section-header">
+      <div class="section-title">Tabela de Usinas</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="filter-input" id="table-search" placeholder="Buscar usina..." oninput="renderTable()" style="min-width:200px;"/>
+      </div>
+    </div>
+    <div class="chart-card" style="padding:0;overflow:hidden;">
+      <div class="table-wrap">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th onclick="sortTable('nome')">Usina</th>
+              <th onclick="sortTable('plataforma')">Portal</th>
+              <th onclick="sortTable('categoria')">Plano</th>
+              <th onclick="sortTable('status')">Status</th>
+              <th onclick="sortTable('capacidade_kwp')">Cap kWp</th>
+              <th onclick="sortTable('potencia_kw')">Pot kW</th>
+              <th onclick="sortTable('ger_dia_kwh')">Ger Dia</th>
+              <th onclick="sortTable('ger_mensal_kwh')">Ger Mês</th>
+              <th onclick="sortTable('ger_anual_kwh')">Ger Ano</th>
+              <th>Conectsol</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <div class="pagination" style="padding:12px 16px;">
+        <div class="pagination-info" id="pagination-info">—</div>
+        <div class="pagination-btns" id="pagination-btns"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#main -->
+
+<div id="footer">
+  Dashboard Solar — Conectsol &nbsp;·&nbsp; Dados via Google Sheets &nbsp;·&nbsp; Desenvolvido com Chart.js
+</div>
+
+<!-- ===================================================================
+     JAVASCRIPT
+     =================================================================== -->
+<script>
+'use strict';
+
+// =====================================================================
+// CONFIGURAÇÃO — URL pública da planilha (não alterar)
+// Planilha publicada em: Arquivo → Compartilhar → Publicar na web
+// =====================================================================
+const PUBLISH_ID = "2PACX-1vTqMEjueMCHlRhvX4oJYbH-H9ZFgDmKSZQ0txFRtDtQDYAzPtZsyLuSN0FST3-cPh6IlwNW75cakONU";
+const SHEET_CONFIG = {
+  gold:       { gid: "1443175125", label: "Monitoramento Gold"   },
+  prata:      { gid: "825348907",  label: "Monitoramento Prata"  },
+  historico:  { gid: "35755543",   label: "Historico"            },
+  usinas:     { gid: "1908449833", label: "Usinas Conectsol"     },
+  geracao:    { gid: "705495366",  label: "Geração por Usina"    },
+  resumo:     { gid: "1586655237", label: "Resumo Diario"        },
+  plataformas:{ gid: "1998898613", label: "Status Plataformas"   },
+};
+// =====================================================================
+
+// Gera URL de exportação CSV com anti-cache
+function csvUrl(gid) {
+  return `https://docs.google.com/spreadsheets/d/e/${PUBLISH_ID}/pub?gid=${gid}&single=true&output=csv&cachebust=${Date.now()}`;
+}
+
+// =====================================================================
+// Estado global
+// =====================================================================
+let RAW = { gold:[], prata:[], historico:[], usinas:[], geracao:[], resumo:[], plataformas:[] };
+let FILTERED = [];
+let TABLE_SORT = { col: 'nome', dir: 1 };
+let TABLE_PAGE = 1;
+const TABLE_PAGE_SIZE = 20;
+let HIST_MODE  = 'dia';
+let HIST_USINA = '';
+// Irradiação média mensal de Brumado/BA (kWh/kWp/mês) — base para prognóstico
+const IRRAD_MENSAL = 130;
+const IRRAD_ANUAL  = IRRAD_MENSAL * 12; // 1560 kWh/kWp/ano
+let STATUS_FILTER = new Set(); // vazio = todos ativos
+let ONLY_CONECTSOL = false;
+
+// Nomes de usinas Conectsol (vindos da aba Usinas Conectsol)
+let CONECTSOL_NAMES = new Set();
+
+// Instâncias dos gráficos (para destruir antes de re-renderizar)
+const charts = {};
+
+// =====================================================================
+// PARSER CSV ROBUSTO
+// =====================================================================
+
+// Detecta separador dominante na primeira linha
+function detectSep(raw) {
+  const line = raw.split('\n')[0] || '';
+  return (line.match(/;/g) || []).length > (line.match(/,/g) || []).length ? ';' : ',';
+}
+
+// Parse CSV com suporte a campos entre aspas e separador variável
+function parseCSV(raw) {
+  const sep = detectSep(raw);
+  const lines = raw.split(/\r?\n/);
+  if (!lines.length) return [];
+  const rows = [];
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === sep && !inQ) { cols.push(cur.trim()); cur = ''; continue; }
+      cur += c;
+    }
+    cols.push(cur.trim());
+    rows.push(cols);
+  }
+  return rows;
+}
+
+// Remove acentos e normaliza chave de coluna
+function normalizeKey(h) {
+  return (h || '').toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_\-\/\(\)\.]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+// Mapa de aliases: chave canônica → variações possíveis de cabeçalho normalizado
+const COL_ALIASES = {
+  nome:           ['nome','usina','planta','plant_name'],
+  plataforma:     ['plataforma','portal','portal_declarado','plataforma_encontrada'],
+  status:         ['status'],
+  capacidade_kwp: ['capacidade_kwp','capacidade_kw_p','cap_kwp','capacidade_kw'],
+  potencia_kw:    ['pot_atual_kw','potencia_kw','pot_kw','pot_atual'],
+  ger_dia_kwh:    ['ger_dia_kwh','ger_dia_atual_kwh','ger_dia'],
+  ger_dia_max_kwh:['ger_dia_max_kwh','ger_dia_max'],
+  ger_mensal_kwh: ['ger_mensal_kwh','ger_mes_kwh','ger_mensal'],
+  ger_anual_kwh:  ['ger_anual_kwh','ger_ano_kwh','ger_anual'],
+  ger_total_kwh:  ['ger_total_kwh','total_ger_kwh','geracao_total_kwh','ger_total'],
+  jan_mwh:        ['total_ger_jan_mwh','jan_mwh','jan'],
+  fev_mwh:        ['total_ger_fev_mwh','fev_mwh','fev'],
+  mar_mwh:        ['total_ger_mar_mwh','mar_mwh','mar'],
+  abr_mwh:        ['total_ger_abr_mwh','abr_mwh','abr'],
+  data:           ['data','date'],
+  sincronizado:   ['sincronizado','atualizado','ultima_sincronizacao'],
+  categoria:      ['categoria'],
+  confianca:      ['confianca','confianca_match'],
+  nome_original:  ['nome_original','nomeoriginal'],  // cliente único — ignora split multi-portal/multi-plant
+};
+
+// Constrói mapeamento { aliasNorm: canonicKey } para lookup rápido
+const ALIAS_MAP = {};
+for (const [canon, aliases] of Object.entries(COL_ALIASES)) {
+  for (const a of aliases) ALIAS_MAP[normalizeKey(a)] = canon;
+}
+
+// Constrói map de índice de colunas a partir do header
+function buildColMap(headerRow) {
+  const map = {};
+  headerRow.forEach((h, i) => {
+    const norm = normalizeKey(h);
+    const canon = ALIAS_MAP[norm] || norm;
+    if (!(canon in map)) map[canon] = i;
+  });
+  return map;
+}
+
+// Extrai valor de coluna pelo nome canônico
+function col(row, colMap, key) {
+  const idx = colMap[key];
+  return idx !== undefined ? (row[idx] || '') : '';
+}
+
+// Converte string PT-BR para float
+// Trata: "1.234,56", "0,5", "1234.56", "--", "—", "", null
+function parseNum(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (!s || s === '-' || s === '--' || s === '—' || s === 'N/A' || s === 'n/a') return null;
+  const clean = s.replace(/[^\d,.\-]/g, '');
+  if (!clean || clean === '-') return null;
+  if (clean.includes(',') && clean.includes('.'))
+    return parseFloat(clean.replace(/\./g, '').replace(',', '.'));
+  if (clean.includes(','))
+    return parseFloat(clean.replace(',', '.'));
+  const n = parseFloat(clean);
+  return isNaN(n) ? null : n;
+}
+
+// Normaliza kWh vs MWh: colunas "MWh" com valor < 100 são convertidas para kWh
+function toKwh(val, colName) {
+  if (val === null) return null;
+  if (colName && colName.toLowerCase().includes('mwh') && Math.abs(val) < 200)
+    return val * 1000;
+  return val;
+}
+
+// Remove emojis e textos extras do status
+function cleanStatus(s) {
+  return (s || '')
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu, '')
+    .replace(/[✅🔴🟢🟡🟠⚪⚫🔵🟤🟣]/g, '')
+    .trim()
+    .split(/[\s\-–]/)[0]  // pega só a primeira palavra (Normal, Alerta, etc.)
+    || 'Desconhecido';
+}
+
+// Normaliza variações de status para grupo canônico
+function normalizeStatus(raw) {
+  const s = cleanStatus(raw).toLowerCase();
+  if (['normal','ok','online','ativo','ativa','1'].includes(s)) return 'Normal';
+  if (['alerta','alert','warning','aviso','standby'].includes(s)) return 'Alerta';
+  if (['falha','fault','error','erro'].includes(s)) return 'Falha';
+  if (['offline','off-line','off'].includes(s)) return 'Offline';
+  return 'Desconhecido';
+}
+
+// Converte rows CSV em array de objetos normalizados
+function rowsToObjects(rows, categoria) {
+  if (rows.length < 2) return [];
+  const colMap = buildColMap(rows[0]);
+  const result = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.every(c => !c.trim())) continue; // linha vazia
+    const nome = col(r, colMap, 'nome').trim();
+    if (!nome) continue;
+    const obj = {
+      nome,
+      plataforma:     col(r, colMap, 'plataforma') || '',
+      status:         normalizeStatus(col(r, colMap, 'status')),
+      capacidade_kwp: toKwh(parseNum(col(r, colMap, 'capacidade_kwp')), 'kwp'),
+      potencia_kw:    parseNum(col(r, colMap, 'potencia_kw')),
+      ger_dia_kwh:    parseNum(col(r, colMap, 'ger_dia_kwh')),
+      ger_mensal_kwh: parseNum(col(r, colMap, 'ger_mensal_kwh')),
+      ger_anual_kwh:  parseNum(col(r, colMap, 'ger_anual_kwh')),
+      ger_total_kwh:  parseNum(col(r, colMap, 'ger_total_kwh')),
+      jan_mwh:        toKwh(parseNum(col(r, colMap, 'jan_mwh')), 'mwh'),
+      fev_mwh:        toKwh(parseNum(col(r, colMap, 'fev_mwh')), 'mwh'),
+      mar_mwh:        toKwh(parseNum(col(r, colMap, 'mar_mwh')), 'mwh'),
+      abr_mwh:        toKwh(parseNum(col(r, colMap, 'abr_mwh')), 'mwh'),
+      confianca:      col(r, colMap, 'confianca') || '',
+      sincronizado:   col(r, colMap, 'sincronizado') || col(r, colMap, 'data') || '',
+      categoria:      categoria || col(r, colMap, 'categoria') || '',
+      is_conectsol:   false, // preenchido depois
+    };
+    result.push(obj);
+  }
+  return result;
+}
+
+// Converte rows do Histórico
+function rowsToHistorico(rows) {
+  if (rows.length < 2) return [];
+  const colMap = buildColMap(rows[0]);
+  const result = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.every(c => !c.trim())) continue;
+    const dataStr = col(r, colMap, 'data') || col(r, colMap, 'sincronizado');
+    if (!dataStr) continue;
+    // Prefere Ger Dia Max (pico do dia) sobre Ger Dia (leitura pontual, pode ser ~0 às 20h)
+    const gerDiaMax = parseNum(col(r, colMap, 'ger_dia_max_kwh'));
+    const gerDia    = parseNum(col(r, colMap, 'ger_dia_kwh'));
+    result.push({
+      data:           dataStr,
+      nome:           col(r, colMap, 'nome'),
+      plataforma:     col(r, colMap, 'plataforma'),
+      status:         normalizeStatus(col(r, colMap, 'status')),
+      capacidade_kwp: parseNum(col(r, colMap, 'capacidade_kwp')),
+      ger_dia_kwh:    gerDiaMax !== null ? gerDiaMax : gerDia,
+      ger_mensal_kwh: parseNum(col(r, colMap, 'ger_mensal_kwh')),
+      ger_anual_kwh:  parseNum(col(r, colMap, 'ger_anual_kwh')),
+      ger_total_kwh:  parseNum(col(r, colMap, 'ger_total_kwh')),
+    });
+  }
+  return result;
+}
+
+// Converte rows da Geração por Usina
+function rowsToGeracao(rows) {
+  if (rows.length < 2) return [];
+  const colMap = buildColMap(rows[0]);
+  const result = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.every(c => !c.trim())) continue;
+    const nome = col(r, colMap, 'nome') || col(r, colMap, 'usina');
+    if (!nome) continue;
+    result.push({
+      data:         col(r, colMap, 'data'),
+      nome:         nome.trim(),
+      portal:       col(r, colMap, 'plataforma') || col(r, colMap, 'portal'),
+      ger_dia:      parseNum(col(r, colMap, 'ger_dia_kwh')),
+      ger_dia_max:  parseNum(col(r, colMap, 'ger_dia_max_kwh') || col(r, colMap, 'ger_dia_max')),
+      pct_total:    parseNum(col(r, colMap, '_do_total') || col(r, colMap, 'pct_total')),
+    });
+  }
+  return result;
+}
+
+// Converte rows da aba Status Plataformas
+function rowsToPlataformas(rows) {
+  if (rows.length < 2) return [];
+  const colMap = buildColMap(rows[0]);
+  const result = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.every(c => !c.trim())) continue;
+    const plat = col(r, colMap, 'plataforma');
+    if (!plat) continue;
+    result.push({
+      plataforma:    plat,
+      ultima_coleta: col(r, colMap, 'ultima_coleta') || col(r, colMap, 'ultima coleta') || '',
+      usinas:        parseNum(col(r, colMap, 'usinas')) || 0,
+      status:        col(r, colMap, 'status') || '',
+      idade_min:     parseNum(col(r, colMap, 'idade_min') || col(r, colMap, 'idade')) || null,
+      erro:          col(r, colMap, 'erro') || '',
+    });
+  }
+  return result;
+}
+
+// =====================================================================
+// FETCH & LOAD
+// =====================================================================
+
+async function fetchCSV(gid, label) {
+  const url = csvUrl(gid);
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text = await resp.text();
+    if (text.trim().startsWith('<!')) throw new Error('Planilha não publicada ou GID inválido');
+    return text;
+  } catch (e) {
+    console.warn(`[${label}] Falha ao carregar: ${e.message}`);
+    return null;
+  }
+}
+
+async function loadAllSheets() {
+  showLoading(true);
+  hideError();
+
+  const results = await Promise.allSettled([
+    fetchCSV(SHEET_CONFIG.gold.gid,        'Gold'),
+    fetchCSV(SHEET_CONFIG.prata.gid,       'Prata'),
+    fetchCSV(SHEET_CONFIG.historico.gid,   'Historico'),
+    fetchCSV(SHEET_CONFIG.usinas.gid,      'Usinas'),
+    fetchCSV(SHEET_CONFIG.geracao.gid,     'Geracao'),
+    fetchCSV(SHEET_CONFIG.resumo.gid,      'Resumo'),
+    fetchCSV(SHEET_CONFIG.plataformas.gid, 'Plataformas'),
+  ]);
+
+  const [goldRaw, prataRaw, histRaw, usinasRaw, geracaoRaw, resumoRaw, platRaw] =
+    results.map(r => r.status === 'fulfilled' ? r.value : null);
+
+  let anyLoaded = false;
+
+  if (goldRaw) {
+    RAW.gold = rowsToObjects(parseCSV(goldRaw), 'Gold');
+    anyLoaded = true;
+  }
+  if (prataRaw) {
+    RAW.prata = rowsToObjects(parseCSV(prataRaw), 'Prata');
+    anyLoaded = true;
+  }
+  if (histRaw) {
+    RAW.historico = rowsToHistorico(parseCSV(histRaw));
+    anyLoaded = true;
+  }
+  if (usinasRaw) {
+    const usinasRows = parseCSV(usinasRaw);
+    RAW.usinas = rowsToObjects(usinasRows, '');
+    // Popula set de nomes Conectsol para flag is_conectsol
+    CONECTSOL_NAMES = new Set(RAW.usinas.map(u => u.nome.toLowerCase()));
+    anyLoaded = true;
+  }
+  if (geracaoRaw) {
+    RAW.geracao = rowsToGeracao(parseCSV(geracaoRaw));
+    anyLoaded = true;
+  }
+  if (resumoRaw) {
+    RAW.resumo = rowsToHistorico(parseCSV(resumoRaw));
+    anyLoaded = true;
+  }
+  if (platRaw) {
+    RAW.plataformas = rowsToPlataformas(parseCSV(platRaw));
+    anyLoaded = true;
+  }
+
+  // Flag is_conectsol em gold+prata
+  for (const arr of [RAW.gold, RAW.prata]) {
+    for (const u of arr) {
+      u.is_conectsol = CONECTSOL_NAMES.has(u.nome.toLowerCase());
+    }
+  }
+
+  populateUsinaSelect();
+
+  if (!anyLoaded) {
+    showError('Não foi possível carregar nenhuma aba. Verifique se a planilha está publicada na web e se os GIDs estão corretos no bloco SHEET_CONFIG.');
+  }
+
+  // Preenche filtro de portais
+  populatePortalFilter();
+  updateTimestamp();
+  showLoading(false);
+}
+
+// =====================================================================
+// FILTROS
+// =====================================================================
+
+function populatePortalFilter() {
+  const all = [...RAW.gold, ...RAW.prata, ...RAW.usinas];
+  const portais = [...new Set(all.map(u => u.plataforma).filter(Boolean))].sort();
+  const sel = document.getElementById('f-portal');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todos os portais</option>';
+  portais.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    sel.appendChild(opt);
+  });
+  sel.value = current;
+}
+
+function toggleStatus(el) {
+  const s = el.dataset.s;
+  if (STATUS_FILTER.has(s)) { STATUS_FILTER.delete(s); el.classList.remove('inactive'); }
+  else                       { STATUS_FILTER.add(s);    el.classList.add('inactive'); }
+  applyFilters();
+}
+
+function toggleConectsolFilter() {
+  ONLY_CONECTSOL = !ONLY_CONECTSOL;
+  document.getElementById('f-conectsol').classList.toggle('active', ONLY_CONECTSOL);
+  applyFilters();
+}
+
+function clearFilters() {
+  document.getElementById('f-period').value = 'all';
+  document.getElementById('f-portal').value = '';
+  document.getElementById('f-categoria').value = '';
+  STATUS_FILTER.clear();
+  document.querySelectorAll('.status-chip').forEach(c => c.classList.remove('inactive'));
+  ONLY_CONECTSOL = false;
+  document.getElementById('f-conectsol').classList.remove('active');
+  applyFilters();
+}
+
+function filterDate(dateStr, period) {
+  if (period === 'all' || !dateStr) return true;
+  const now = new Date();
+  let d;
+  // Tenta DD/MM/YYYY HH:MM:SS ou YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    d = new Date(dateStr.substring(0,10));
+  } else if (/^\d{2}\/\d{2}\/\d{4}/.test(dateStr)) {
+    const [dd, mm, yyyy] = dateStr.split('/');
+    d = new Date(`${yyyy}-${mm}-${dd}`);
+  } else return true;
+  if (isNaN(d)) return true;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === 'hoje') return d >= today;
+  if (period === '7d')   return d >= new Date(today - 7*864e5);
+  if (period === 'mes')  return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+  if (period === 'mes-ant') {
+    const prev = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    return d.getFullYear()===prev.getFullYear() && d.getMonth()===prev.getMonth();
+  }
+  return true;
+}
+
+function applyFilters() {
+  const period = document.getElementById('f-period').value;
+  const portal = document.getElementById('f-portal').value;
+  const cat    = document.getElementById('f-categoria').value;
+
+  // Quando Conectsol ativo, usa as usinas próprias como base (dataset separado de Gold/Prata)
+  const base = ONLY_CONECTSOL
+    ? RAW.usinas.map(u => ({ ...u, categoria: 'Conectsol', is_conectsol: true }))
+    : [...RAW.gold, ...RAW.prata];
+
+  FILTERED = base.filter(u => {
+    if (portal && u.plataforma !== portal) return false;
+    if (!ONLY_CONECTSOL) {
+      if (cat === 'gold'  && u.categoria !== 'Gold')  return false;
+      if (cat === 'prata' && u.categoria !== 'Prata') return false;
+    }
+    if (STATUS_FILTER.size > 0 && STATUS_FILTER.has(u.status.toLowerCase())) return false;
+    if (!filterDate(u.sincronizado, period)) return false;
+    return true;
+  });
+
+  TABLE_PAGE = 1;
+  renderAll();
+}
+
+// =====================================================================
+// RENDER — KPIs
+// =====================================================================
+
+function fmt(n, decimals=1) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return n.toLocaleString('pt-BR', { minimumFractionDigits:decimals, maximumFractionDigits:decimals });
+}
+
+function renderKPIs() {
+  const total_ger = FILTERED.reduce((s,u) => s + (u.ger_dia_kwh||0), 0);
+  const total_pot = FILTERED.reduce((s,u) => s + (u.potencia_kw||0), 0);
+  const total_cap = FILTERED.reduce((s,u) => s + (u.capacidade_kwp||0), 0);
+  // Conta clientes únicos pelo nome_original (evita duplicar clientes com 2 portais/projetos)
+  const nGold  = new Set(FILTERED.filter(u => u.categoria==='Gold').map(u  => u.nome_original || u.nome)).size;
+  const nPrata = new Set(FILTERED.filter(u => u.categoria==='Prata').map(u => u.nome_original || u.nome)).size;
+  const nUsinas = RAW.usinas.length;
+
+  // Performance: todas as usinas entram no cálculo (ger_dia||0 para as sem dado)
+  const comGerDia  = FILTERED.filter(u => u.ger_dia_kwh !== null && u.capacidade_kwp > 0);
+  const horas_pico = 4;
+  const perf       = total_cap > 0 ? (total_ger / (total_cap * horas_pico)) * 100 : 0;
+
+  document.getElementById('kpi-ger-dia').textContent     = fmt(total_ger);
+  document.getElementById('kpi-ger-dia-sub').textContent = `${FILTERED.length} usinas monitoradas`;
+  document.getElementById('kpi-pot').textContent         = fmt(total_pot);
+  document.getElementById('kpi-pot-sub').textContent     = `Cap. total: ${fmt(total_cap)} kWp`;
+  document.getElementById('kpi-gold').textContent  = nGold;
+  document.getElementById('kpi-prata').textContent = nPrata;
+  // Subtítulo mostra total de portais quando há clientes com 2 portais/projetos
+  const nGoldLinhas  = FILTERED.filter(u => u.categoria==='Gold').length;
+  const nPrataLinhas = FILTERED.filter(u => u.categoria==='Prata').length;
+  const goldSub  = document.getElementById('kpi-gold-sub');
+  const prataSub = document.getElementById('kpi-prata-sub');
+  if (goldSub)  goldSub.textContent  = nGoldLinhas > nGold   ? `${nGoldLinhas} portais monitorados`  : 'Monitoramento premium';
+  if (prataSub) prataSub.textContent = nPrataLinhas > nPrata  ? `${nPrataLinhas} portais monitorados` : 'Monitoramento premium';
+  document.getElementById('kpi-sem-plano').textContent   = nUsinas;
+  document.getElementById('kpi-perf').textContent        = fmt(perf, 1);
+
+  const perfSub = document.getElementById('kpi-perf-sub');
+  if (perfSub) perfSub.textContent = `${comGerDia.length} de ${FILTERED.length} usinas com geração`;
+
+  return { total_ger, total_pot, total_cap, nGold, nPrata, perf };
+}
+
+// =====================================================================
+// RENDER — Charts
+// =====================================================================
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+// Paleta de cores para plataformas
+const PALETTE = [
+  '#059669','#0ea5e9','#f59e0b','#8b5cf6','#f43f5e','#06b6d4',
+  '#84cc16','#fb923c','#ec4899','#14b8a6','#6366f1','#a78bfa',
+];
+
+// 1. Histórico de geração (linha)
+function populateUsinaSelect() {
+  const sel = document.getElementById('f-hist-usina');
+  if (!sel) return;
+  const names = [...new Set(RAW.historico.map(r => r.nome).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Todas as usinas</option>' +
+    names.map(n => `<option value="${n}"${n===HIST_USINA?' selected':''}>${n}</option>`).join('');
+}
+
+function setHistUsina() {
+  HIST_USINA = document.getElementById('f-hist-usina').value;
+  renderHistorico();
+}
+
+function renderHistorico() {
+  destroyChart('historico');
+  const ctx = document.getElementById('chart-historico').getContext('2d');
+
+  let data = [...RAW.historico];
+  if (!data.length) {
+    data = FILTERED.map(u => ({ data: u.sincronizado, nome: u.nome, plataforma: u.plataforma, ger_dia_kwh: u.ger_dia_kwh, capacidade_kwp: u.capacidade_kwp }));
+  }
+
+  // Filtra por usina selecionada
+  if (HIST_USINA) data = data.filter(r => r.nome === HIST_USINA);
+
+  // Agrupa por período
+  const groups = {};
+  const capGroups = {};
+  for (const r of data) {
+    const d = parseDate(r.data);
+    if (!d) continue;
+    let key;
+    if (HIST_MODE === 'dia')    key = d.toISOString().substring(0,10);
+    if (HIST_MODE === 'semana') key = getWeekKey(d);
+    if (HIST_MODE === 'mes')    key = d.toISOString().substring(0,7);
+    if (!groups[key]) { groups[key] = 0; capGroups[key] = 0; }
+    groups[key]   += r.ger_dia_kwh || 0;
+    // Para prognóstico: acumula capacidade (únicas por data quando planta filtrada = 1 registro)
+    capGroups[key] = Math.max(capGroups[key], r.capacidade_kwp || 0);
+  }
+
+  const labels    = Object.keys(groups).sort();
+  const values    = labels.map(k => +groups[k].toFixed(2));
+
+  // Prognóstico: kWp × irradiação (Brumado 130 kWh/kWp/mês), ajustado por período
+  const progFator = HIST_MODE === 'dia'    ? IRRAD_ANUAL / 365
+                  : HIST_MODE === 'semana' ? IRRAD_ANUAL / 52
+                  :                         IRRAD_MENSAL;       // mês
+
+  // Com usina específica: usa capacidade acumulada do histórico por período
+  // Sem usina (visão geral): usa capacidade total dos clientes filtrados como baseline constante
+  const totalCapFiltrado = FILTERED.reduce((s, u) => s + (u.capacidade_kwp || 0), 0);
+  const showProg = labels.length > 0 && (!!HIST_USINA ? Object.values(capGroups).some(v => v > 0) : totalCapFiltrado > 0);
+  const progValues = showProg
+    ? labels.map(k => {
+        const cap = HIST_USINA ? (capGroups[k] || 0) : totalCapFiltrado;
+        return +((cap * progFator) || 0).toFixed(2);
+      })
+    : [];
+
+  const datasets = [{
+    label: HIST_USINA ? `Geração — ${HIST_USINA.split(' - ').slice(-1)[0] || HIST_USINA}` : 'Geração Total (kWh)',
+    data: values,
+    borderColor: '#059669',
+    backgroundColor: 'rgba(5,150,105,.08)',
+    borderWidth: 2,
+    pointRadius: HIST_MODE==='dia' ? 3 : 4,
+    pointBackgroundColor: '#059669',
+    tension: 0.3,
+    fill: true,
+  }];
+
+  if (showProg) {
+    datasets.push({
+      label: HIST_USINA ? 'Prognóstico da usina (kWh)' : 'Prognóstico total carteira (kWh)',
+      data: progValues,
+      borderColor: '#f59e0b',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderDash: [6, 4],
+      pointRadius: 0,
+      tension: 0.3,
+      fill: false,
+    });
+  }
+
+  charts['historico'] = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { font:{ size:12 }, boxWidth:16 } },
+        datalabels: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => {
+              if (item.datasetIndex === 0) return `Geração: ${fmt(item.raw)} kWh`;
+              if (item.datasetIndex === 1) return `Prognóstico: ${fmt(item.raw)} kWh`;
+              return item.formattedValue;
+            },
+            footer: showProg ? (items) => {
+              const idx = items[0]?.dataIndex;
+              if (idx === undefined) return '';
+              const ger  = values[idx]    || 0;
+              const prog = progValues[idx] || 0;
+              if (!prog) return '';
+              const desemp = ((ger / prog) * 100).toFixed(1);
+              return `Desempenho: ${desemp}%`;
+            } : undefined,
+          },
+          footerFont: { weight: 'bold' },
+          footerColor: (ctx2) => {
+            const idx = ctx2.tooltip?.dataPoints?.[0]?.dataIndex;
+            if (idx === undefined) return '#f59e0b';
+            const ger = values[idx] || 0;
+            const prog = progValues[idx] || 1;
+            const d = (ger / prog) * 100;
+            return d >= 90 ? '#16a34a' : d >= 70 ? '#d97706' : '#dc2626';
+          },
+        },
+      },
+      scales: {
+        x: { grid:{ color:'rgba(0,0,0,.04)' }, ticks:{ maxTicksLimit:14, font:{size:11} } },
+        y: { grid:{ color:'rgba(0,0,0,.04)' }, ticks:{ font:{size:11} },
+             title:{ display:true, text:'kWh', font:{size:11} } },
+      }
+    }
+  });
+}
+
+// 2. Geração por usina (barras verticais)
+function renderPorUsina() {
+  destroyChart('por-usina');
+  const ctx = document.getElementById('chart-por-usina').getContext('2d');
+
+  // Pega última data da aba; fallback para Gold+Prata se vazia ou sem dado para hoje
+  const latest = getLatestGeracao();
+  let items = latest.length > 0
+    ? latest
+    : FILTERED.map(u => ({ nome: u.nome, ger_dia: u.ger_dia_kwh||0, portal: u.plataforma }));
+
+  items = items.filter(i => i.ger_dia > 0).sort((a,b) => b.ger_dia - a.ger_dia).slice(0, 30);
+
+  charts['por-usina'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: items.map(i => shortName(i.nome)),
+      datasets: [{
+        label: 'Ger. Dia (kWh)',
+        data: items.map(i => i.ger_dia),
+        backgroundColor: items.map((_,idx) => PALETTE[idx % PALETTE.length] + 'cc'),
+        borderColor: items.map((_,idx) => PALETTE[idx % PALETTE.length]),
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'x',
+      plugins: {
+        legend:{ display:false },
+        datalabels:{ display:false },
+        tooltip: { callbacks: { title: (items2) => {
+          const orig = items[items2[0].dataIndex];
+          return orig ? orig.nome : '';
+        }}}
+      },
+      scales: {
+        x: { ticks: { font:{size:9}, maxRotation:60 } },
+        y: { grid:{ color:'rgba(0,0,0,.04)' }, ticks:{ font:{size:11} } }
+      }
+    }
+  });
+}
+
+// 3. Gold vs Prata — Geração acumulada (mês atual e ano)
+function renderGoldPrata() {
+  destroyChart('gold-prata');
+  const ctx = document.getElementById('chart-gold-prata').getContext('2d');
+
+  const sumBy = (arr, field) => arr.reduce((s,u) => s + (u[field]||0), 0);
+
+  // ger_mensal_kwh e ger_anual_kwh existem nas abas Gold e Prata
+  const goldMes   = +(sumBy(RAW.gold,  'ger_mensal_kwh') / 1000).toFixed(2);
+  const prataMes  = +(sumBy(RAW.prata, 'ger_mensal_kwh') / 1000).toFixed(2);
+  const goldAno   = +(sumBy(RAW.gold,  'ger_anual_kwh')  / 1000).toFixed(2);
+  const prataAno  = +(sumBy(RAW.prata, 'ger_anual_kwh')  / 1000).toFixed(2);
+
+  charts['gold-prata'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Mês Atual', 'Ano Atual'],
+      datasets: [
+        { label:'Gold',  data:[goldMes,  goldAno],  backgroundColor:'rgba(245,158,11,.8)', borderColor:'#f59e0b', borderWidth:1, borderRadius:4 },
+        { label:'Prata', data:[prataMes, prataAno], backgroundColor:'rgba(100,116,139,.8)', borderColor:'#64748b', borderWidth:1, borderRadius:4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position:'bottom', labels:{ font:{size:11} } },
+        datalabels: { display:false },
+        tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmt(item.raw)} MWh` } }
+      },
+      scales: {
+        x: { ticks:{ font:{size:11} } },
+        y: { ticks:{ font:{size:11} }, title:{ display:true, text:'MWh', font:{size:11} } }
+      }
+    }
+  });
+}
+
+// 4. Status rosca
+function renderStatus() {
+  destroyChart('status');
+  const ctx = document.getElementById('chart-status').getContext('2d');
+  const counts = { Normal:0, Alerta:0, Falha:0, Offline:0, Desconhecido:0 };
+  for (const u of FILTERED) counts[u.status] = (counts[u.status]||0)+1;
+  const labels = Object.keys(counts).filter(k => counts[k]>0);
+  const vals   = labels.map(k => counts[k]);
+  const colors = { Normal:'#16a34a', Alerta:'#d97706', Falha:'#dc2626', Offline:'#6b7280', Desconhecido:'#cbd5e1' };
+
+  charts['status'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data:vals, backgroundColor:labels.map(l=>colors[l]||'#888'), borderWidth:2, hoverOffset:8 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position:'bottom', labels:{ font:{size:11}, padding:12 } },
+        datalabels: {
+          display: true,
+          color: '#fff',
+          font: { size:11, weight:'bold' },
+          formatter: (v) => v > 0 ? v : '',
+        }
+      }
+    }
+  });
+}
+
+// 5. Gauge (performance)
+function renderGauge(perf) {
+  destroyChart('gauge');
+  const ctx = document.getElementById('chart-gauge').getContext('2d');
+  const val = Math.min(100, Math.max(0, perf));
+  const color = val < 40 ? '#dc2626' : val < 70 ? '#d97706' : '#059669';
+
+  charts['gauge'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [val, 100-val],
+        backgroundColor: [color, 'rgba(0,0,0,.06)'],
+        borderWidth: 0,
+        circumference: 240,
+        rotation: 240,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: { legend:{ display:false }, datalabels:{ display:false }, tooltip:{ enabled:false } }
+    }
+  });
+
+  document.getElementById('gauge-val').textContent = `${val.toFixed(1)}%`;
+}
+
+// 6. Geração por plataforma (barras horizontais)
+function renderPlataforma() {
+  destroyChart('plataforma');
+  const ctx = document.getElementById('chart-plataforma').getContext('2d');
+  const acc = {};
+  for (const u of FILTERED) {
+    const p = u.plataforma || 'Sem portal';
+    if (!acc[p]) acc[p] = 0;
+    acc[p] += u.ger_total_kwh || 0;
+  }
+  const sorted = Object.entries(acc).sort((a,b)=>b[1]-a[1]).slice(0,12);
+
+  charts['plataforma'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(e=>e[0]),
+      datasets: [{
+        label: 'Ger. Total (kWh)',
+        data: sorted.map(e=>e[1]),
+        backgroundColor: sorted.map((_,i)=>PALETTE[i%PALETTE.length]+'bb'),
+        borderColor: sorted.map((_,i)=>PALETTE[i%PALETTE.length]),
+        borderWidth:1, borderRadius:4,
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins: { legend:{display:false}, datalabels:{display:false} },
+      scales: {
+        x: { ticks:{font:{size:10}}, grid:{color:'rgba(0,0,0,.04)'} },
+        y: { ticks:{font:{size:10}} }
+      }
+    }
+  });
+}
+
+// 7. Scatter — capacidade vs geração dia
+function renderScatter() {
+  destroyChart('scatter');
+  const ctx = document.getElementById('chart-scatter').getContext('2d');
+  const statusColors = { Normal:'#16a34a', Alerta:'#d97706', Falha:'#dc2626', Offline:'#6b7280', Desconhecido:'#94a3b8' };
+
+  const points = FILTERED
+    .filter(u => u.capacidade_kwp && u.ger_dia_kwh !== null)
+    .map(u => ({ x: u.capacidade_kwp, y: u.ger_dia_kwh||0, nome: u.nome, status: u.status }));
+
+  // Linha de tendência simples (regressão linear)
+  const n = points.length;
+  if (n > 1) {
+    const sumX = points.reduce((s,p)=>s+p.x,0);
+    const sumY = points.reduce((s,p)=>s+p.y,0);
+    const sumXY= points.reduce((s,p)=>s+p.x*p.y,0);
+    const sumX2= points.reduce((s,p)=>s+p.x*p.x,0);
+    const slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
+    const intercept = (sumY - slope*sumX) / n;
+    const xVals = [Math.min(...points.map(p=>p.x)), Math.max(...points.map(p=>p.x))];
+    const trendPoints = xVals.map(x => ({ x, y: slope*x+intercept }));
+
+    charts['scatter'] = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Usinas',
+            data: points,
+            backgroundColor: points.map(p => (statusColors[p.status]||'#888') + 'bb'),
+            pointRadius: 6, pointHoverRadius: 8,
+          },
+          {
+            label: 'Tendência',
+            data: trendPoints,
+            type: 'line',
+            borderColor: '#059669',
+            borderWidth: 1.5,
+            borderDash: [4,4],
+            pointRadius: 0,
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: {
+          legend:{ display:false },
+          datalabels:{ display:false },
+          tooltip: { callbacks: {
+            label: (item) => {
+              if (item.datasetIndex===1) return `Tendência: ${item.raw.y.toFixed(0)} kWh`;
+              const p = points[item.dataIndex];
+              return p ? `${p.nome}: ${p.y} kWh` : '';
+            }
+          }}
+        },
+        scales: {
+          x: { title:{ display:true, text:'Capacidade (kWp)', font:{size:11} }, grid:{color:'rgba(0,0,0,.04)'} },
+          y: { title:{ display:true, text:'Ger. Dia (kWh)',   font:{size:11} }, grid:{color:'rgba(0,0,0,.04)'} },
+        }
+      }
+    });
+  }
+}
+
+// 8. Top 10 piores (barras horizontais)
+function renderPiores() {
+  destroyChart('piores');
+  const ctx = document.getElementById('chart-piores').getContext('2d');
+  const HORAS_PICO = 4;
+
+  const items = FILTERED
+    .filter(u => u.capacidade_kwp > 0)
+    .map(u => {
+      const pot = u.capacidade_kwp * HORAS_PICO;
+      const ger = u.ger_dia_kwh || 0;
+      return { nome: u.nome, efic: pot > 0 ? (ger/pot)*100 : 0 };
+    })
+    .filter(i => i.efic < 100)
+    .sort((a,b)=>a.efic-b.efic)
+    .slice(0,10);
+
+  charts['piores'] = new Chart(ctx, {
+    type:'bar',
+    data: {
+      labels: items.map(i => shortName(i.nome)),
+      datasets:[{
+        label:'Eficiência %',
+        data: items.map(i=>+i.efic.toFixed(1)),
+        backgroundColor: items.map(i => i.efic < 20 ? '#dc2626bb' : i.efic < 50 ? '#d97706bb' : '#f59e0bbb'),
+        borderColor: items.map(i => i.efic < 20 ? '#dc2626' : i.efic < 50 ? '#d97706' : '#f59e0b'),
+        borderWidth:1, borderRadius:4,
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins: {
+        legend:{display:false},
+        datalabels:{
+          display:true, anchor:'end', align:'right', color:'var(--text)',
+          font:{size:10, weight:'600'},
+          formatter: v => `${v}%`
+        }
+      },
+      scales: {
+        x: { max:100, ticks:{callback:v=>`${v}%`, font:{size:10}}, grid:{color:'rgba(0,0,0,.04)'} },
+        y: { ticks:{font:{size:10}} }
+      }
+    }
+  });
+}
+
+// 9. Heatmap — geração por mês × plataforma (canvas customizado)
+function renderHeatmap() {
+  const canvas = document.getElementById('heatmap-canvas');
+  const theme  = document.documentElement.dataset.theme;
+  const isDark = theme === 'dark';
+
+  // Agrupa usinas por mês (JAN/FEV/MAR) e plataforma
+  const meses = ['JAN','FEV','MAR','ABR'];
+  const mesFields = ['jan_mwh','fev_mwh','mar_mwh','abr_mwh'];
+  const portais = [...new Set([...RAW.gold,...RAW.prata,...RAW.usinas].map(u=>u.plataforma).filter(Boolean))].sort();
+
+  if (!portais.length) { canvas.style.display='none'; return; }
+
+  const data = {};
+  for (const m of meses) data[m] = {};
+  for (const p of portais) for (const m of meses) data[m][p] = 0;
+
+  const allUsinas = [...RAW.gold, ...RAW.prata, ...RAW.usinas];
+  for (const u of allUsinas) {
+    if (!u.plataforma) continue;
+    mesFields.forEach((f, i) => {
+      if (u[f]) data[meses[i]][u.plataforma] = (data[meses[i]][u.plataforma]||0) + (u[f]||0);
+    });
+  }
+
+  // Encontra máximo para normalização de cor
+  let maxVal = 1;
+  for (const m of meses) for (const p of portais) if (data[m][p] > maxVal) maxVal = data[m][p];
+
+  // Dimensões
+  const cellW = Math.max(80, Math.floor((window.innerWidth - 100) / (portais.length+1)));
+  const cellH = 50;
+  const offX = 50; const offY = 60;
+  const W = offX + portais.length * cellW + 20;
+  const H = offY + meses.length * cellH + 20;
+  canvas.width = W; canvas.height = H;
+
+  const g = canvas.getContext('2d');
+  g.clearRect(0,0,W,H);
+
+  // Labels portais (coluna)
+  g.font = 'bold 11px Inter,sans-serif';
+  g.fillStyle = isDark ? '#94a3b8' : '#64748b';
+  g.textAlign = 'center';
+  portais.forEach((p,j) => {
+    g.save();
+    g.translate(offX + j*cellW + cellW/2, offY - 8);
+    g.rotate(-Math.PI/5);
+    g.fillText(p.length > 12 ? p.substring(0,12)+'…' : p, 0, 0);
+    g.restore();
+  });
+
+  // Labels meses (linha)
+  g.textAlign = 'right';
+  g.font = 'bold 12px Inter,sans-serif';
+  meses.forEach((m,i) => {
+    g.fillText(m, offX - 8, offY + i*cellH + cellH/2 + 4);
+  });
+
+  // Células
+  meses.forEach((m,i) => {
+    portais.forEach((p,j) => {
+      const val = data[m][p] || 0;
+      const t = val / maxVal;
+      // Verde: rgba(5,150,105, t)
+      const alpha = 0.08 + t * 0.85;
+      g.fillStyle = isDark
+        ? `rgba(16,185,129,${alpha})`
+        : `rgba(5,150,105,${alpha})`;
+      g.fillRect(offX + j*cellW + 1, offY + i*cellH + 1, cellW - 2, cellH - 2);
+      // Texto
+      if (val > 0) {
+        g.fillStyle = t > 0.5 ? '#fff' : (isDark ? '#94a3b8' : '#374151');
+        g.font = '10px Inter,sans-serif';
+        g.textAlign = 'center';
+        const display = val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toFixed(0);
+        g.fillText(display, offX + j*cellW + cellW/2, offY + i*cellH + cellH/2 + 4);
+      }
+    });
+  });
+}
+
+// =====================================================================
+// INSIGHTS
+// =====================================================================
+
+function renderInsights() {
+  const HORAS_PICO = 4;
+
+  // Top 10 maior geração
+  const top10 = [...FILTERED].sort((a,b)=>(b.ger_dia_kwh||0)-(a.ger_dia_kwh||0)).slice(0,10);
+  const ins1 = document.querySelector('#ins-top10 tbody');
+  ins1.innerHTML = top10.map(u =>
+    `<tr><td>${shortName(u.nome)}</td><td style="color:var(--text-muted)">${u.plataforma||'—'}</td><td><strong>${fmt(u.ger_dia_kwh)}</strong></td></tr>`
+  ).join('');
+
+  // Clientes por portal
+  const byPortal = {};
+  FILTERED.forEach(u => { const p=u.plataforma||'Sem portal'; byPortal[p]=(byPortal[p]||0)+1; });
+  const totalPortal = FILTERED.length || 1;
+  const sortedPortal = Object.entries(byPortal).sort((a,b)=>b[1]-a[1]);
+  const ins2 = document.querySelector('#ins-portais tbody');
+  ins2.innerHTML = sortedPortal.map(([p,n]) =>
+    `<tr><td>${p}</td><td>${n}</td><td style="color:var(--text-muted)">${((n/totalPortal)*100).toFixed(0)}%</td></tr>`
+  ).join('');
+
+  // Top 10 piores eficiência
+  const piores = FILTERED
+    .filter(u => u.capacidade_kwp > 0)
+    .map(u => ({ ...u, efic: ((u.ger_dia_kwh||0)/(u.capacidade_kwp*HORAS_PICO))*100 }))
+    .sort((a,b)=>a.efic-b.efic).slice(0,10);
+  const ins3 = document.querySelector('#ins-piores tbody');
+  ins3.innerHTML = piores.map(u =>
+    `<tr><td>${shortName(u.nome)}</td><td>${fmt(u.capacidade_kwp,0)}</td><td style="color:${u.efic<20?'var(--falha)':'var(--alerta)'};font-weight:700">${u.efic.toFixed(0)}%</td></tr>`
+  ).join('');
+
+  // Sem monitoramento
+  const semMon = FILTERED.filter(u => (u.status==='Desconhecido'||u.status==='Offline') && !(u.ger_dia_kwh>0));
+  const ins4 = document.querySelector('#ins-sem-mon tbody');
+  ins4.innerHTML = semMon.slice(0,15).map(u =>
+    `<tr><td>${shortName(u.nome)}</td><td>${statusBadge(u.status)}</td><td style="color:var(--text-muted)">${u.plataforma||'—'}</td></tr>`
+  ).join('') || '<tr><td colspan="3" style="color:var(--ok);text-align:center">✓ Todas com monitoramento</td></tr>';
+
+  // Planos
+  const nG = RAW.gold.length, nP = RAW.prata.length, nU = RAW.usinas.length;
+  const nSem = Math.max(0, nU - RAW.gold.filter(u=>u.is_conectsol).length - RAW.prata.filter(u=>u.is_conectsol).length);
+  document.getElementById('ins-planos').innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <div style="background:var(--gold-bg);padding:12px 16px;border-radius:8px;min-width:80px;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:var(--gold)">${nG}</div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600">GOLD</div>
+      </div>
+      <div style="background:var(--prata-bg);padding:12px 16px;border-radius:8px;min-width:80px;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:var(--prata)">${nP}</div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600">PRATA</div>
+      </div>
+      <div style="background:var(--surface2);padding:12px 16px;border-radius:8px;min-width:80px;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:var(--falha)">${nSem}</div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600">CONECTSOL</div>
+      </div>
+      <div style="background:var(--bg2);padding:12px 16px;border-radius:8px;min-width:80px;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:var(--accent)">${nU}</div>
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600">CONECTSOL</div>
+      </div>
+    </div>
+  `;
+
+  // Resumo executivo — performance só para plantas com dado real
+  const today = new Date().toLocaleDateString('pt-BR');
+  const totalGer = FILTERED.reduce((s,u)=>s+(u.ger_dia_kwh||0),0);
+  const totalCap = FILTERED.reduce((s,u)=>s+(u.capacidade_kwp||0),0);
+  const comDadosR = FILTERED.filter(u=>u.ger_dia_kwh!==null&&u.capacidade_kwp>0);
+  const capComDados = comDadosR.reduce((s,u)=>s+(u.capacidade_kwp||0),0);
+  const gerComDados = comDadosR.reduce((s,u)=>s+(u.ger_dia_kwh||0),0);
+  const perf = capComDados>0 ? ((gerComDados/(capComDados*HORAS_PICO))*100).toFixed(1) : '—';
+  const abaixo = FILTERED.filter(u=>u.capacidade_kwp>0&&((u.ger_dia_kwh||0)/(u.capacidade_kwp*HORAS_PICO))<0.5).length;
+  const nNormal = FILTERED.filter(u=>u.status==='Normal').length;
+  document.getElementById('ins-resumo').textContent =
+    `Em ${today}, ${FILTERED.length} usinas monitoradas geraram ${fmt(totalGer)} kWh com ${fmt(totalCap,0)} kWp instalados. ` +
+    `Performance diária de ${perf}% da capacidade nominal (base 4h de pico solar). ` +
+    `${nNormal} usinas em operação normal, ${semMon.length} sem sinal ativo. ` +
+    `${abaixo} usinas abaixo de 50% do potencial estimado — recomenda-se verificação preventiva.`;
+}
+
+// =====================================================================
+// TABELA
+// =====================================================================
+
+function sortTable(col) {
+  if (TABLE_SORT.col === col) TABLE_SORT.dir *= -1;
+  else { TABLE_SORT.col = col; TABLE_SORT.dir = 1; }
+  // Atualiza visuais de header
+  document.querySelectorAll('#data-table th').forEach(th => {
+    th.classList.remove('sorted-asc','sorted-desc');
+  });
+  const ths = document.querySelectorAll('#data-table th');
+  const cols = ['nome','plataforma','categoria','status','capacidade_kwp','potencia_kw','ger_dia_kwh','ger_mensal_kwh','ger_anual_kwh','is_conectsol'];
+  const idx = cols.indexOf(col);
+  if (idx >= 0) ths[idx].classList.add(TABLE_SORT.dir===1?'sorted-asc':'sorted-desc');
+  TABLE_PAGE = 1;
+  renderTable();
+}
+
+function renderTable() {
+  const search = (document.getElementById('table-search').value || '').toLowerCase();
+
+  let rows = [...FILTERED];
+  if (search) rows = rows.filter(u => (u.nome||'').toLowerCase().includes(search) || (u.plataforma||'').toLowerCase().includes(search));
+
+  // Ordenação
+  rows.sort((a,b) => {
+    let va = a[TABLE_SORT.col], vb = b[TABLE_SORT.col];
+    if (typeof va === 'number' && typeof vb === 'number') return (va-vb)*TABLE_SORT.dir;
+    return String(va||'').localeCompare(String(vb||''), 'pt-BR') * TABLE_SORT.dir;
+  });
+
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / TABLE_PAGE_SIZE));
+  TABLE_PAGE = Math.min(TABLE_PAGE, pages);
+  const start = (TABLE_PAGE-1) * TABLE_PAGE_SIZE;
+  const pageRows = rows.slice(start, start+TABLE_PAGE_SIZE);
+
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = pageRows.map(u => `
+    <tr>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;" title="${u.nome}">${u.nome}</td>
+      <td style="color:var(--text-muted)">${u.plataforma||'—'}</td>
+      <td>${u.categoria==='Gold'?'<span class="badge badge-gold">🥇 Gold</span>':u.categoria==='Prata'?'<span class="badge badge-prata">🥈 Prata</span>':'<span class="badge badge-desc">—</span>'}</td>
+      <td>${statusBadge(u.status)}</td>
+      <td style="text-align:right">${fmt(u.capacidade_kwp)}</td>
+      <td style="text-align:right">${fmt(u.potencia_kw)}</td>
+      <td style="text-align:right;font-weight:600">${fmt(u.ger_dia_kwh)}</td>
+      <td style="text-align:right">${fmt(u.ger_mensal_kwh)}</td>
+      <td style="text-align:right">${fmt(u.ger_anual_kwh)}</td>
+      <td style="text-align:center">${u.is_conectsol?'<span style="color:var(--accent);font-weight:700">⚡</span>':'—'}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('pagination-info').textContent =
+    `${start+1}–${Math.min(start+TABLE_PAGE_SIZE,total)} de ${total} usinas`;
+
+  // Paginação
+  const btnCont = document.getElementById('pagination-btns');
+  btnCont.innerHTML = '';
+  const addBtn = (label, page, active) => {
+    const b = document.createElement('button');
+    b.className = 'page-btn' + (active?' active':'');
+    b.textContent = label;
+    b.onclick = () => { TABLE_PAGE = page; renderTable(); };
+    btnCont.appendChild(b);
+  };
+  if (TABLE_PAGE > 1) addBtn('‹', TABLE_PAGE-1, false);
+  const start_p = Math.max(1, TABLE_PAGE-2);
+  const end_p   = Math.min(pages, TABLE_PAGE+2);
+  for (let p = start_p; p <= end_p; p++) addBtn(p, p, p===TABLE_PAGE);
+  if (TABLE_PAGE < pages) addBtn('›', TABLE_PAGE+1, false);
+}
+
+// =====================================================================
+// RENDER ALL
+// =====================================================================
+
+function renderPlataformasStatus() {
+  const grid = document.getElementById('plataformas-grid');
+  if (!RAW.plataformas.length) { grid.innerHTML = ''; return; }
+
+  grid.innerHTML = RAW.plataformas.map(p => {
+    const s = (p.status || '').toLowerCase();
+    const isOk   = s.includes('ok') || s.includes('normal') || s.includes('✅') || (p.idade_min !== null && p.idade_min < 120);
+    const isErr  = !!p.erro || s.includes('erro') || s.includes('falha') || s.includes('timeout') || s.includes('❌');
+    const isWarn = !isOk && !isErr;
+    const color = isErr ? 'var(--falha)' : isWarn ? 'var(--alerta)' : 'var(--ok)';
+    const bg    = isErr ? 'var(--falha-bg)' : isWarn ? 'var(--alerta-bg)' : 'var(--ok-bg)';
+    const icon  = isErr ? '❌' : isWarn ? '⚠️' : '✅';
+    const idadeStr = p.idade_min !== null ? `${p.idade_min} min` : '—';
+    return `
+      <div style="background:var(--surface);border:1px solid ${color};border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:700;color:${color}">${icon} ${p.plataforma}</span>
+          <span style="font-size:10px;background:${bg};color:${color};padding:2px 7px;border-radius:20px;font-weight:600;">${p.usinas} usinas</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);">Idade: <strong>${idadeStr}</strong></div>
+        ${p.erro ? `<div style="font-size:10px;color:var(--falha);margin-top:4px;word-break:break-word;">${p.erro.substring(0,60)}${p.erro.length>60?'…':''}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function renderAll() {
+  const { perf } = renderKPIs();
+  renderHistorico();
+  renderPorUsina();
+  renderGoldPrata();
+  renderStatus();
+  renderGauge(perf);
+  renderPlataforma();
+  renderScatter();
+  renderPiores();
+  renderHeatmap();
+  renderPlataformasStatus();
+  renderInsights();
+  renderTable();
+}
+
+// =====================================================================
+// HELPERS
+// =====================================================================
+
+// Encurta nome da usina para labels
+function shortName(nome) {
+  if (!nome) return '—';
+  const s = nome.replace(/^USINA\s+\d+\s*[-–]\s*/i, '');
+  return s.length > 22 ? s.substring(0,22)+'…' : s;
+}
+
+function statusBadge(status) {
+  const map = {
+    Normal:       'badge-ok',
+    Alerta:       'badge-alerta',
+    Falha:        'badge-falha',
+    Offline:      'badge-offline',
+    Desconhecido: 'badge-desc',
+  };
+  const cls = map[status] || 'badge-desc';
+  const icons = { Normal:'✅', Alerta:'⚠️', Falha:'❌', Offline:'⭕', Desconhecido:'❓' };
+  return `<span class="badge ${cls}">${icons[status]||''} ${status}</span>`;
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s.substring(0,10));
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
+    const [dd,mm,yyyy] = s.split('/');
+    return new Date(`${yyyy}-${mm}-${dd}`);
+  }
+  return null;
+}
+
+function getWeekKey(d) {
+  const day = new Date(d); day.setHours(0,0,0,0);
+  const mon = new Date(day); mon.setDate(day.getDate() - ((day.getDay()+6)%7));
+  return mon.toISOString().substring(0,10);
+}
+
+// Pega dados da Geração por Usina para a data mais recente
+function getLatestGeracao() {
+  if (!RAW.geracao.length) return [];
+  const datas = RAW.geracao.map(r => r.data).filter(Boolean);
+  if (!datas.length) return RAW.geracao;
+  const latest = datas.sort().reverse()[0];
+  return RAW.geracao.filter(r => r.data === latest);
+}
+
+function setHistMode(mode, btn) {
+  HIST_MODE = mode;
+  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHistorico(); // prognóstico só aparece no modo Dia
+}
+
+// =====================================================================
+// DARK MODE
+// =====================================================================
+
+function toggleDark() {
+  const html = document.documentElement;
+  const isDark = html.dataset.theme === 'dark';
+  html.dataset.theme = isDark ? 'light' : 'dark';
+  document.getElementById('dark-toggle').textContent = isDark ? '🌙' : '☀️';
+  // Re-renderiza heatmap com novas cores
+  renderHeatmap();
+  // Atualiza cores dos gráficos de forma global
+  Chart.defaults.color = isDark ? '#94a3b8' : '#475569';
+  Object.values(charts).forEach(c => c.update());
+}
+
+// =====================================================================
+// TIMESTAMP & ESTADO
+// =====================================================================
+
+function updateTimestamp() {
+  const now = new Date().toLocaleString('pt-BR');
+  document.getElementById('last-update').textContent = `Última atualização: ${now}`;
+}
+
+function showLoading(show) {
+  document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+}
+
+function showError(msg) {
+  const b = document.getElementById('error-banner');
+  document.getElementById('error-text').textContent = msg;
+  b.classList.remove('hidden');
+}
+
+function hideError() {
+  document.getElementById('error-banner').classList.add('hidden');
+}
+
+async function refreshAll() {
+  await loadAllSheets();
+  applyFilters();
+}
+
+// =====================================================================
+// EXPORTAR CSV
+// =====================================================================
+
+function exportCSV() {
+  const headers = ['Nome','Portal','Plano','Status','Cap kWp','Pot kW','Ger Dia kWh','Ger Mês kWh','Ger Ano kWh','Conectsol'];
+  const rows = FILTERED.map(u => [
+    `"${u.nome}"`, u.plataforma, u.categoria, u.status,
+    u.capacidade_kwp||'', u.potencia_kw||'', u.ger_dia_kwh||'',
+    u.ger_mensal_kwh||'', u.ger_anual_kwh||'', u.is_conectsol?'Sim':'Não',
+  ]);
+  const csv = [headers.join(';'), ...rows.map(r=>r.join(';'))].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `dashboard-solar-${new Date().toISOString().substring(0,10)}.csv`;
+  a.click();
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+
+// Registra plugin datalabels globalmente
+Chart.register(ChartDataLabels);
+
+// Define defaults Chart.js
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.color = '#475569';
+
+// Inicializa status chips como todos ativos
+document.querySelectorAll('.status-chip').forEach(c => c.classList.remove('inactive'));
+
+// Inicializa filtros e carrega dados
+(async () => {
+  await loadAllSheets();
+  applyFilters();
+})();
+
+// Atualiza heatmap ao redimensionar
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderHeatmap, 300);
+});
+</script>
+</body>
+</html>
