@@ -537,6 +537,7 @@ button { cursor:pointer; font-family:var(--font); border:none; }
       <option value="">Todas</option>
       <option value="gold">Gold</option>
       <option value="prata">Prata</option>
+      <option value="garantia">Garantia</option>
     </select>
   </div>
   <div class="filter-group">
@@ -585,6 +586,12 @@ button { cursor:pointer; font-family:var(--font); border:none; }
       <div class="kpi-label">Clientes Prata</div>
       <div class="kpi-value"><span id="kpi-prata">—</span></div>
       <div class="kpi-delta" id="kpi-prata-sub">Monitoramento básico</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:#9333ea">
+      <div class="kpi-icon">🛡️</div>
+      <div class="kpi-label">Clientes Garantia</div>
+      <div class="kpi-value"><span id="kpi-garantia">—</span></div>
+      <div class="kpi-delta">Monitoramento pós-instalação</div>
     </div>
     <div class="kpi-card" style="--kpi-color:#f43f5e">
       <div class="kpi-icon">📋</div>
@@ -756,7 +763,7 @@ button { cursor:pointer; font-family:var(--font); border:none; }
       <!-- card: resumo executivo -->
       <div class="insight-card">
         <div class="insight-title">📝 Resumo Executivo</div>
-        <div class="insight-summary" id="ins-resumo">Aguardando dados...</div>
+        <div id="ins-resumo" style="max-height:340px;overflow-y:auto;font-size:13px;">Aguardando dados...</div>
       </div>
     </div>
   </div>
@@ -814,13 +821,14 @@ button { cursor:pointer; font-family:var(--font); border:none; }
 // =====================================================================
 const PUBLISH_ID = "2PACX-1vTqMEjueMCHlRhvX4oJYbH-H9ZFgDmKSZQ0txFRtDtQDYAzPtZsyLuSN0FST3-cPh6IlwNW75cakONU";
 const SHEET_CONFIG = {
-  gold:       { gid: "1443175125", label: "Monitoramento Gold"   },
-  prata:      { gid: "825348907",  label: "Monitoramento Prata"  },
-  historico:  { gid: "35755543",   label: "Historico"            },
-  usinas:     { gid: "1908449833", label: "Usinas Conectsol"     },
-  geracao:    { gid: "705495366",  label: "Geração por Usina"    },
-  resumo:     { gid: "1586655237", label: "Resumo Diario"        },
-  plataformas:{ gid: "1998898613", label: "Status Plataformas"   },
+  gold:       { gid: "1443175125", label: "Monitoramento Gold"      },
+  prata:      { gid: "825348907",  label: "Monitoramento Prata"     },
+  garantia:   { gid: "",           label: "Monitoramento Garantia"  }, // preencher GID após 1ª execução
+  historico:  { gid: "35755543",   label: "Historico"               },
+  usinas:     { gid: "1908449833", label: "Usinas Conectsol"        },
+  geracao:    { gid: "705495366",  label: "Geração por Usina"       },
+  resumo:     { gid: "1586655237", label: "Resumo Diario"           },
+  plataformas:{ gid: "1998898613", label: "Status Plataformas"      },
 };
 // =====================================================================
 
@@ -832,7 +840,7 @@ function csvUrl(gid) {
 // =====================================================================
 // Estado global
 // =====================================================================
-let RAW = { gold:[], prata:[], historico:[], usinas:[], geracao:[], resumo:[], plataformas:[] };
+let RAW = { gold:[], prata:[], garantia:[], historico:[], usinas:[], geracao:[], resumo:[], plataformas:[] };
 let FILTERED = [];
 let TABLE_SORT = { col: 'nome', dir: 1 };
 let TABLE_PAGE = 1;
@@ -1088,6 +1096,22 @@ function rowsToPlataformas(rows) {
   return result;
 }
 
+// Converte rows da aba Resumo Diario
+function rowsToResumo(rows) {
+  if (rows.length < 2) return [];
+  const header = rows[0].map(h => h.toLowerCase().trim().replace(/\s+/g,'_'));
+  const result = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.every(c => !c.trim())) continue;
+    const obj = {};
+    header.forEach((h, idx) => { obj[h] = r[idx] || ''; });
+    if (!obj.data) continue;
+    result.push(obj);
+  }
+  return result;
+}
+
 // =====================================================================
 // FETCH & LOAD
 // =====================================================================
@@ -1113,6 +1137,7 @@ async function loadAllSheets() {
   const results = await Promise.allSettled([
     fetchCSV(SHEET_CONFIG.gold.gid,        'Gold'),
     fetchCSV(SHEET_CONFIG.prata.gid,       'Prata'),
+    SHEET_CONFIG.garantia.gid ? fetchCSV(SHEET_CONFIG.garantia.gid, 'Garantia') : Promise.resolve(null),
     fetchCSV(SHEET_CONFIG.historico.gid,   'Historico'),
     fetchCSV(SHEET_CONFIG.usinas.gid,      'Usinas'),
     fetchCSV(SHEET_CONFIG.geracao.gid,     'Geracao'),
@@ -1120,7 +1145,7 @@ async function loadAllSheets() {
     fetchCSV(SHEET_CONFIG.plataformas.gid, 'Plataformas'),
   ]);
 
-  const [goldRaw, prataRaw, histRaw, usinasRaw, geracaoRaw, resumoRaw, platRaw] =
+  const [goldRaw, prataRaw, garantiaRaw, histRaw, usinasRaw, geracaoRaw, resumoRaw, platRaw] =
     results.map(r => r.status === 'fulfilled' ? r.value : null);
 
   let anyLoaded = false;
@@ -1131,6 +1156,10 @@ async function loadAllSheets() {
   }
   if (prataRaw) {
     RAW.prata = rowsToObjects(parseCSV(prataRaw), 'Prata');
+    anyLoaded = true;
+  }
+  if (garantiaRaw) {
+    RAW.garantia = rowsToObjects(parseCSV(garantiaRaw), 'Garantia');
     anyLoaded = true;
   }
   if (histRaw) {
@@ -1149,7 +1178,7 @@ async function loadAllSheets() {
     anyLoaded = true;
   }
   if (resumoRaw) {
-    RAW.resumo = rowsToHistorico(parseCSV(resumoRaw));
+    RAW.resumo = rowsToResumo(parseCSV(resumoRaw));
     anyLoaded = true;
   }
   if (platRaw) {
@@ -1181,7 +1210,7 @@ async function loadAllSheets() {
 // =====================================================================
 
 function populatePortalFilter() {
-  const all = [...RAW.gold, ...RAW.prata, ...RAW.usinas];
+  const all = [...RAW.gold, ...RAW.prata, ...RAW.garantia, ...RAW.usinas];
   const portais = [...new Set(all.map(u => u.plataforma).filter(Boolean))].sort();
   const sel = document.getElementById('f-portal');
   const current = sel.value;
@@ -1262,7 +1291,7 @@ function applyFilters() {
   // Quando Conectsol ativo, usa as usinas próprias como base (dataset separado de Gold/Prata)
   const base = ONLY_CONECTSOL
     ? RAW.usinas.map(u => ({ ...u, categoria: 'Conectsol', is_conectsol: true }))
-    : [...RAW.gold, ...RAW.prata];
+    : [...RAW.gold, ...RAW.prata, ...RAW.garantia];
 
   // Usa a data mais recente do dataset como referência para "hoje" e "7d"
   // Evita retornar vazio quando o workflow rodou ontem e hoje ainda não há dados novos
@@ -1271,8 +1300,9 @@ function applyFilters() {
   FILTERED = base.filter(u => {
     if (portal && u.plataforma !== portal) return false;
     if (!ONLY_CONECTSOL) {
-      if (cat === 'gold'  && u.categoria !== 'Gold')  return false;
-      if (cat === 'prata' && u.categoria !== 'Prata') return false;
+      if (cat === 'gold'     && u.categoria !== 'Gold')     return false;
+      if (cat === 'prata'    && u.categoria !== 'Prata')    return false;
+      if (cat === 'garantia' && u.categoria !== 'Garantia') return false;
     }
     if (STATUS_FILTER.size > 0 && STATUS_FILTER.has(u.status.toLowerCase())) return false;
     if (!filterDate(u.sincronizado, period, refDate)) return false;
@@ -1297,9 +1327,10 @@ function renderKPIs() {
   const total_pot = FILTERED.reduce((s,u) => s + (u.potencia_kw||0), 0);
   const total_cap = FILTERED.reduce((s,u) => s + (u.capacidade_kwp||0), 0);
   // Conta clientes únicos pelo nome_original (evita duplicar clientes com 2 portais/projetos)
-  const nGold  = new Set(FILTERED.filter(u => u.categoria==='Gold').map(u  => u.nome_original || u.nome)).size;
-  const nPrata = new Set(FILTERED.filter(u => u.categoria==='Prata').map(u => u.nome_original || u.nome)).size;
-  const nUsinas = RAW.usinas.length;
+  const nGold     = new Set(FILTERED.filter(u => u.categoria==='Gold').map(u     => u.nome_original || u.nome)).size;
+  const nPrata    = new Set(FILTERED.filter(u => u.categoria==='Prata').map(u    => u.nome_original || u.nome)).size;
+  const nGarantia = new Set(RAW.garantia.map(u => u.nome_original || u.nome)).size;
+  const nUsinas   = RAW.usinas.length;
 
   // Performance: todas as usinas entram no cálculo (ger_dia||0 para as sem dado)
   const comGerDia  = FILTERED.filter(u => u.ger_dia_kwh !== null && u.capacidade_kwp > 0);
@@ -1310,8 +1341,10 @@ function renderKPIs() {
   document.getElementById('kpi-ger-dia-sub').textContent = `${FILTERED.length} usinas monitoradas`;
   document.getElementById('kpi-pot').textContent         = fmt(total_pot);
   document.getElementById('kpi-pot-sub').textContent     = `Cap. total: ${fmt(total_cap)} kWp`;
-  document.getElementById('kpi-gold').textContent  = nGold;
-  document.getElementById('kpi-prata').textContent = nPrata;
+  document.getElementById('kpi-gold').textContent     = nGold;
+  document.getElementById('kpi-prata').textContent    = nPrata;
+  const kpiGar = document.getElementById('kpi-garantia');
+  if (kpiGar) kpiGar.textContent = nGarantia;
   // Subtítulo mostra total de portais quando há clientes com 2 portais/projetos
   const nGoldLinhas  = FILTERED.filter(u => u.categoria==='Gold').length;
   const nPrataLinhas = FILTERED.filter(u => u.categoria==='Prata').length;
@@ -1890,18 +1923,12 @@ function renderInsights() {
     `<tr><td>${shortName(u.nome)}</td><td>${statusBadge(u.status)}</td><td style="color:var(--text-muted)">${u.plataforma||'—'}</td></tr>`
   ).join('') || '<tr><td colspan="3" style="color:var(--ok);text-align:center">✓ Todas com monitoramento</td></tr>';
 
-  // Planos
-  const nG = new Set(RAW.gold.map(u => u.nome_original || u.nome)).size;
-  const nP = new Set(RAW.prata.map(u => u.nome_original || u.nome)).size;
-  const nU = RAW.usinas.length;
+  // Planos — usa RAW.garantia diretamente (aba separada)
+  const nG   = new Set(RAW.gold.map(u => u.nome_original || u.nome)).size;
+  const nP   = new Set(RAW.prata.map(u => u.nome_original || u.nome)).size;
+  const nGar = new Set(RAW.garantia.map(u => u.nome_original || u.nome)).size;
+  const nU   = RAW.usinas.length;
   const nSem = Math.max(0, nU - RAW.gold.filter(u=>u.is_conectsol).length - RAW.prata.filter(u=>u.is_conectsol).length);
-  // Clientes na garantia: identificados pelo marcador | no nome_original
-  const garantiaSet = new Set(
-    [...RAW.gold, ...RAW.prata]
-      .filter(u => (u.nome_original || u.nome).includes('|'))
-      .map(u => u.nome_original || u.nome)
-  );
-  const nGarantia = garantiaSet.size;
   document.getElementById('ins-planos').innerHTML = `
     <div style="display:flex;gap:16px;flex-wrap:wrap;">
       <div style="background:var(--gold-bg);padding:12px 16px;border-radius:8px;min-width:80px;text-align:center">
@@ -1913,7 +1940,7 @@ function renderInsights() {
         <div style="font-size:11px;color:var(--text-muted);font-weight:600">PRATA</div>
       </div>
       <div style="background:#fdf4ff;padding:12px 16px;border-radius:8px;min-width:80px;text-align:center">
-        <div style="font-size:24px;font-weight:800;color:#9333ea">${nGarantia}</div>
+        <div style="font-size:24px;font-weight:800;color:#9333ea">${nGar}</div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:600">GARANTIA</div>
       </div>
       <div style="background:var(--surface2);padding:12px 16px;border-radius:8px;min-width:80px;text-align:center">
@@ -1923,21 +1950,56 @@ function renderInsights() {
     </div>
   `;
 
-  // Resumo executivo — performance só para plantas com dado real
-  const today = new Date().toLocaleDateString('pt-BR');
-  const totalGer = FILTERED.reduce((s,u)=>s+(u.ger_dia_kwh||0),0);
-  const totalCap = FILTERED.reduce((s,u)=>s+(u.capacidade_kwp||0),0);
-  const comDadosR = FILTERED.filter(u=>u.ger_dia_kwh!==null&&u.capacidade_kwp>0);
-  const capComDados = comDadosR.reduce((s,u)=>s+(u.capacidade_kwp||0),0);
-  const gerComDados = comDadosR.reduce((s,u)=>s+(u.ger_dia_kwh||0),0);
-  const perf = capComDados>0 ? ((gerComDados/(capComDados*HORAS_PICO))*100).toFixed(1) : '—';
-  const abaixo = FILTERED.filter(u=>u.capacidade_kwp>0&&((u.ger_dia_kwh||0)/(u.capacidade_kwp*HORAS_PICO))<0.5).length;
-  const nNormal = FILTERED.filter(u=>u.status==='Normal').length;
-  document.getElementById('ins-resumo').textContent =
-    `Em ${today}, ${FILTERED.length} usinas monitoradas geraram ${fmt(totalGer)} kWh com ${fmt(totalCap,0)} kWp instalados. ` +
+  // Resumo executivo histórico — hoje em tempo real + histórico do Resumo Diario
+  const todayDate  = new Date();
+  const todayStr   = todayDate.toLocaleDateString('pt-BR');
+  const totalGer   = FILTERED.reduce((s,u)=>s+(u.ger_dia_kwh||0),0);
+  const totalCap   = FILTERED.reduce((s,u)=>s+(u.capacidade_kwp||0),0);
+  const comDadosR  = FILTERED.filter(u=>u.ger_dia_kwh!==null&&u.capacidade_kwp>0);
+  const capComDados= comDadosR.reduce((s,u)=>s+(u.capacidade_kwp||0),0);
+  const gerComDados= comDadosR.reduce((s,u)=>s+(u.ger_dia_kwh||0),0);
+  const perf       = capComDados>0 ? ((gerComDados/(capComDados*HORAS_PICO))*100).toFixed(1) : '—';
+  const abaixo     = FILTERED.filter(u=>u.capacidade_kwp>0&&((u.ger_dia_kwh||0)/(u.capacidade_kwp*HORAS_PICO))<0.5).length;
+  const nNormal    = FILTERED.filter(u=>u.status==='Normal').length;
+  const textoHoje  =
+    `${FILTERED.length} usinas monitoradas geraram ${fmt(totalGer)} kWh com ${fmt(totalCap,0)} kWp instalados. ` +
     `Performance diária de ${perf}% da capacidade nominal (base 4h de pico solar). ` +
     `${nNormal} usinas em operação normal, ${semMon.length} sem sinal ativo. ` +
     `${abaixo} usinas abaixo de 50% do potencial estimado — recomenda-se verificação preventiva.`;
+
+  function buildResumoText(r) {
+    const colMap = {};
+    Object.keys(r).forEach((k,i) => colMap[k]=i);
+    const p = parseFloat(r.performance_pct||0).toFixed(1);
+    const ger = parseFloat(r.ger_dia_kwh||0);
+    const cap = parseFloat(r.capacidade_kwp||0);
+    return `${r.n_usinas||'?'} usinas geraram ${fmt(ger)} kWh com ${fmt(cap,0)} kWp. ` +
+           `Performance ${p}%. ${r.n_normal||0} normais, ${r.n_sem_sinal||0} sem sinal, ` +
+           `${r.n_abaixo_50||0} abaixo de 50%.`;
+  }
+
+  // Monta lista: hoje (calculado) + histórico do Sheets (mais recente primeiro)
+  const histResumo = (RAW.resumo || [])
+    .filter(r => {
+      const d = r.data || r.sincronizado || '';
+      return d && d !== todayStr;
+    })
+    .sort((a,b) => (b.data||'').localeCompare(a.data||''));
+
+  const allDias = [
+    { data: todayStr, texto: textoHoje },
+    ...histResumo.map(r => ({ data: r.data || r.sincronizado, texto: buildResumoText(r) }))
+  ];
+
+  const resumoEl = document.getElementById('ins-resumo');
+  if (resumoEl) {
+    resumoEl.innerHTML = allDias.map(d =>
+      `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+        <div style="font-weight:700;font-size:12px;color:var(--accent);margin-bottom:4px;">${d.data}</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text-muted)">${d.texto}</div>
+      </div>`
+    ).join('');
+  }
 }
 
 // =====================================================================
