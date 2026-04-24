@@ -1383,10 +1383,34 @@ function applyFilters() {
   if (!ONLY_CONECTSOL && ['7d', 'mes', 'mes-ant'].includes(period) && RAW.historico.length > 0) {
     FILTERED = buildHistoricoAgg(period, resolvedPortal, cat);
   } else {
-    // Snapshot (hoje / todos): usa abas Gold/Prata/Garantia
-    const base = ONLY_CONECTSOL
-      ? RAW.usinas.map(u => ({ ...u, categoria: 'Conectsol', is_conectsol: true }))
-      : [...RAW.gold, ...RAW.prata, ...RAW.garantia];
+    // Snapshot (hoje / todos): usa abas Gold/Prata/Garantia ou Usinas Conectsol
+    let base;
+    if (ONLY_CONECTSOL) {
+      const usinas = RAW.usinas.map(u => ({ ...u, categoria: 'Conectsol', is_conectsol: true }));
+      if (resolvedPortal) {
+        // Filtro de portal ativo → linhas individuais por plataforma
+        base = usinas;
+      } else {
+        // Visão geral → deduplica por nome, soma geração das plataformas múltiplas
+        const byNome = {};
+        const STATUS_PRIO = { 'Falha': 3, 'Aviso': 2, 'Normal': 1, 'Off-line': 0, 'Desconhecido': -1 };
+        for (const u of usinas) {
+          if (!byNome[u.nome]) {
+            byNome[u.nome] = { ...u };
+          } else {
+            byNome[u.nome].ger_dia_kwh    = (parseFloat(byNome[u.nome].ger_dia_kwh)    || 0) + (parseFloat(u.ger_dia_kwh)    || 0);
+            byNome[u.nome].capacidade_kwp = (parseFloat(byNome[u.nome].capacidade_kwp) || 0) + (parseFloat(u.capacidade_kwp) || 0);
+            byNome[u.nome].potencia_kw    = (parseFloat(byNome[u.nome].potencia_kw)    || 0) + (parseFloat(u.potencia_kw)    || 0);
+            if ((STATUS_PRIO[u.status] || 0) > (STATUS_PRIO[byNome[u.nome].status] || 0))
+              byNome[u.nome].status = u.status;
+            byNome[u.nome].plataforma = [byNome[u.nome].plataforma, u.plataforma].filter(Boolean).join(' + ');
+          }
+        }
+        base = Object.values(byNome);
+      }
+    } else {
+      base = [...RAW.gold, ...RAW.prata, ...RAW.garantia];
+    }
 
     const refDate = getLatestDate(base);
 
