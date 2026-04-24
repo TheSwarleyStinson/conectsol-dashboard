@@ -603,7 +603,7 @@ button { cursor:pointer; font-family:var(--font); border:none; }
       <div class="kpi-icon">📈</div>
       <div class="kpi-label">Performance Diária</div>
       <div class="kpi-value"><span id="kpi-perf">—</span> <span class="kpi-unit">%</span></div>
-      <div class="kpi-delta">Ger. dia vs capacidade (4h pico)</div>
+      <div class="kpi-delta">Ger. dia vs capacidade (130 kWh/kWp/mês)</div>
       <div class="kpi-delta" id="kpi-perf-sub" style="margin-top:4px;font-size:10px;line-height:1.6;">—</div>
     </div>
   </div>
@@ -1249,10 +1249,11 @@ function clearFilters() {
 
 function parseDateStr(s) {
   if (!s) return null;
-  let d;
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) d = new Date(s.substring(0,10));
-  else if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) { const [dd,mm,yyyy]=s.split('/'); d=new Date(`${yyyy}-${mm}-${dd}`); }
-  return d && !isNaN(d) ? d : null;
+  const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m1) return new Date(+m1[1], +m1[2]-1, +m1[3]);
+  const m2 = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m2) return new Date(+m2[3], +m2[2]-1, +m2[1]);
+  return null;
 }
 
 function getLatestDate(records) {
@@ -1334,7 +1335,7 @@ function renderKPIs() {
 
   // Performance: todas as usinas entram no cálculo (ger_dia||0 para as sem dado)
   const comGerDia  = FILTERED.filter(u => u.ger_dia_kwh !== null && u.capacidade_kwp > 0);
-  const horas_pico = 4;
+  const horas_pico = IRRAD_MENSAL / 30;
   const perf       = total_cap > 0 ? (total_ger / (total_cap * horas_pico)) * 100 : 0;
 
   document.getElementById('kpi-ger-dia').textContent     = fmt(total_ger);
@@ -1757,7 +1758,7 @@ function renderScatter() {
 function renderPiores() {
   destroyChart('piores');
   const ctx = document.getElementById('chart-piores').getContext('2d');
-  const HORAS_PICO = 4;
+  const HORAS_PICO = IRRAD_MENSAL / 30;
 
   const items = FILTERED
     .filter(u => u.capacidade_kwp > 0)
@@ -1887,7 +1888,7 @@ function renderHeatmap() {
 // =====================================================================
 
 function renderInsights() {
-  const HORAS_PICO = 4;
+  const HORAS_PICO = IRRAD_MENSAL / 30;
 
   // Top 10 maior geração
   const top10 = [...FILTERED].sort((a,b)=>(b.ger_dia_kwh||0)-(a.ger_dia_kwh||0)).slice(0,10);
@@ -1963,7 +1964,7 @@ function renderInsights() {
   const nNormal    = FILTERED.filter(u=>u.status==='Normal').length;
   const textoHoje  =
     `${FILTERED.length} usinas monitoradas geraram ${fmt(totalGer)} kWh com ${fmt(totalCap,0)} kWp instalados. ` +
-    `Performance diária de ${perf}% da capacidade nominal (base 4h de pico solar). ` +
+    `Performance diária de ${perf}% da capacidade nominal (ref. 130 kWh/kWp/mês). ` +
     `${nNormal} usinas em operação normal, ${semMon.length} sem sinal ativo. ` +
     `${abaixo} usinas abaixo de 50% do potencial estimado — recomenda-se verificação preventiva.`;
 
