@@ -851,6 +851,10 @@ let HIST_USINA = '';
 const IRRAD_MENSAL = 130;
 const IRRAD_ANUAL  = IRRAD_MENSAL * 12; // 1560 kWh/kWp/ano
 let STATUS_FILTER = new Set(); // vazio = todos ativos
+// Fator de geração esperada para o período ativo (atualizado em applyFilters)
+let PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL / 30;
+// Aliases de portal: normaliza nomes de fabricante para o portal real
+const PORTAL_ALIASES = { 'SUNGROW': 'iSolarCloud', 'Sungrow': 'iSolarCloud', 'sungrow': 'iSolarCloud' };
 let ONLY_CONECTSOL = false;
 
 // Nomes de usinas Conectsol (vindos da aba Usinas Conectsol)
@@ -1211,7 +1215,8 @@ async function loadAllSheets() {
 
 function populatePortalFilter() {
   const all = [...RAW.gold, ...RAW.prata, ...RAW.garantia, ...RAW.usinas];
-  const portais = [...new Set(all.map(u => u.plataforma).filter(Boolean))].sort();
+  // Normaliza aliases (SUNGROW → iSolarCloud) antes de montar dropdown
+  const portais = [...new Set(all.map(u => PORTAL_ALIASES[u.plataforma] || u.plataforma).filter(Boolean))].sort();
   const sel = document.getElementById('f-portal');
   const current = sel.value;
   sel.innerHTML = '<option value="">Todos os portais</option>';
@@ -1284,31 +1289,119 @@ function filterDate(dateStr, period, refDate) {
   return true;
 }
 
+// Agrega dados do Histórico por usina para um período (7d, mes, mes-ant)
+function buildHistoricoAgg(period, resolvedPortal, cat) {
+  const now = new Date();
+  let startDate, endDate;
+  if (period === '7d') {
+    endDate   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    startDate = new Date(endDate.getTime() - 6 * 86400000);
+  } else if (period === 'mes') {
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    endDate   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (period === 'mes-ant') {
+    startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    endDate   = new Date(now.getFullYear(), now.getMonth(), 0);
+  } else {
+    return [];
+  }
+
+  // Lookup de categoria e nome_original pelo nome (vem dos tabs snapshot)
+  const catMap = {}, origMap = {};
+  for (const u of [...RAW.gold, ...RAW.prata, ...RAW.garantia]) {
+    const k = (u.nome || '').toLowerCase();
+    if (!catMap[k]) { catMap[k] = u.categoria; origMap[k] = u.nome_original || u.nome; }
+  }
+
+  // Deduplica (nome, data) mantendo maior ger_dia_kwh por dia por usina
+  const dayMap = {};
+  for (const r of RAW.historico) {
+    const d = parseDateStr(r.data || r.sincronizado);
+    if (!d || d < startDate || d > endDate) continue;
+    if (resolvedPortal && r.plataforma !== resolvedPortal) continue;
+    const dayKey = `${r.nome}|${(r.data || r.sincronizado || '').substring(0, 10)}`;
+    if (!dayMap[dayKey] || (r.ger_dia_kwh || 0) > (dayMap[dayKey].ger_dia_kwh || 0))
+      dayMap[dayKey] = r;
+  }
+
+  // Agrega por usina
+  const byUsina = {};
+  for (const r of Object.values(dayMap)) {
+    const k = r.nome;
+    if (!byUsina[k]) {
+      const nk = (r.nome || '').toLowerCase();
+      byUsina[k] = {
+        nome: r.nome, plataforma: r.plataforma || '',
+        status: r.status || 'Desconhecido',
+        capacidade_kwp: r.capacidade_kwp || 0, potencia_kw: 0,
+        ger_dia_kwh: 0, ger_mensal_kwh: null, ger_anual_kwh: null, ger_total_kwh: null,
+        nome_original: origMap[nk] || r.nome,
+        categoria: catMap[nk] || '',
+        sincronizado: r.data || '',
+        is_conectsol: false,
+      };
+    }
+    byUsina[k].ger_dia_kwh += r.ger_dia_kwh || 0;
+    const prev = parseDateStr(byUsina[k].sincronizado);
+    const cur  = parseDateStr(r.data || r.sincronizado);
+    if (!prev || (cur && cur > prev)) {
+      byUsina[k].sincronizado = r.data || r.sincronizado || byUsina[k].sincronizado;
+      if (r.status) byUsina[k].status = r.status;
+      if (r.capacidade_kwp) byUsina[k].capacidade_kwp = r.capacidade_kwp;
+    }
+  }
+
+  let result = Object.values(byUsina);
+  if (cat === 'gold')     result = result.filter(u => u.categoria === 'Gold');
+  else if (cat === 'prata')    result = result.filter(u => u.categoria === 'Prata');
+  else if (cat === 'garantia') result = result.filter(u => u.categoria === 'Garantia');
+  if (STATUS_FILTER.size > 0)  result = result.filter(u => !STATUS_FILTER.has((u.status || '').toLowerCase()));
+  return result;
+}
+
 function applyFilters() {
   const period = document.getElementById('f-period').value;
   const portal = document.getElementById('f-portal').value;
   const cat    = document.getElementById('f-categoria').value;
 
-  // Quando Conectsol ativo, usa as usinas próprias como base (dataset separado de Gold/Prata)
-  const base = ONLY_CONECTSOL
-    ? RAW.usinas.map(u => ({ ...u, categoria: 'Conectsol', is_conectsol: true }))
-    : [...RAW.gold, ...RAW.prata, ...RAW.garantia];
+  // Normaliza alias (ex: SUNGROW → iSolarCloud)
+  const resolvedPortal = PORTAL_ALIASES[portal] || portal;
 
-  // Usa a data mais recente do dataset como referência para "hoje" e "7d"
-  // Evita retornar vazio quando o workflow rodou ontem e hoje ainda não há dados novos
-  const refDate = getLatestDate(base);
+  // Calcula fator de geração esperada para o período (usado em renderKPIs)
+  const now = new Date();
+  if (period === '7d') {
+    PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL / 30 * 7;
+  } else if (period === 'mes') {
+    PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL * (now.getDate() / 30);
+  } else if (period === 'mes-ant') {
+    PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL;
+  } else {
+    PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL / 30; // hoje / todos
+  }
 
-  FILTERED = base.filter(u => {
-    if (portal && u.plataforma !== portal) return false;
-    if (!ONLY_CONECTSOL) {
-      if (cat === 'gold'     && u.categoria !== 'Gold')     return false;
-      if (cat === 'prata'    && u.categoria !== 'Prata')    return false;
-      if (cat === 'garantia' && u.categoria !== 'Garantia') return false;
-    }
-    if (STATUS_FILTER.size > 0 && STATUS_FILTER.has(u.status.toLowerCase())) return false;
-    if (!filterDate(u.sincronizado, period, refDate)) return false;
-    return true;
-  });
+  // Períodos históricos: agrega do Histórico (se disponível)
+  if (!ONLY_CONECTSOL && ['7d', 'mes', 'mes-ant'].includes(period) && RAW.historico.length > 0) {
+    FILTERED = buildHistoricoAgg(period, resolvedPortal, cat);
+  } else {
+    // Snapshot (hoje / todos): usa abas Gold/Prata/Garantia
+    const base = ONLY_CONECTSOL
+      ? RAW.usinas.map(u => ({ ...u, categoria: 'Conectsol', is_conectsol: true }))
+      : [...RAW.gold, ...RAW.prata, ...RAW.garantia];
+
+    const refDate = getLatestDate(base);
+
+    FILTERED = base.filter(u => {
+      if (resolvedPortal && u.plataforma !== resolvedPortal) return false;
+      if (!ONLY_CONECTSOL) {
+        if (cat === 'gold'     && u.categoria !== 'Gold')     return false;
+        if (cat === 'prata'    && u.categoria !== 'Prata')    return false;
+        if (cat === 'garantia' && u.categoria !== 'Garantia') return false;
+      }
+      if (STATUS_FILTER.size > 0 && STATUS_FILTER.has(u.status.toLowerCase())) return false;
+      if (!filterDate(u.sincronizado, period, refDate)) return false;
+      return true;
+    });
+  }
 
   TABLE_PAGE = 1;
   renderAll();
@@ -1340,8 +1433,7 @@ function renderKPIs() {
 
   // Performance: todas as usinas entram no cálculo (ger_dia||0 para as sem dado)
   const comGerDia  = FILTERED.filter(u => u.ger_dia_kwh !== null && u.capacidade_kwp > 0);
-  const horas_pico = IRRAD_MENSAL / 30;
-  const perf       = total_cap > 0 ? (total_ger / (total_cap * horas_pico)) * 100 : 0;
+  const perf       = total_cap > 0 ? (total_ger / (total_cap * PERIOD_EXPECTED_FACTOR)) * 100 : 0;
 
   document.getElementById('kpi-ger-dia').textContent     = fmt(total_ger);
   document.getElementById('kpi-ger-dia-sub').textContent = `${FILTERED.length} usinas monitoradas`;
@@ -1763,7 +1855,7 @@ function renderScatter() {
 function renderPiores() {
   destroyChart('piores');
   const ctx = document.getElementById('chart-piores').getContext('2d');
-  const HORAS_PICO = IRRAD_MENSAL / 30;
+  const HORAS_PICO = PERIOD_EXPECTED_FACTOR;
 
   const items = FILTERED
     .filter(u => u.capacidade_kwp > 0)
@@ -1893,7 +1985,7 @@ function renderHeatmap() {
 // =====================================================================
 
 function renderInsights() {
-  const HORAS_PICO = IRRAD_MENSAL / 30;
+  const HORAS_PICO = PERIOD_EXPECTED_FACTOR;
 
   // Top 10 maior geração
   const top10 = [...FILTERED].sort((a,b)=>(b.ger_dia_kwh||0)-(a.ger_dia_kwh||0)).slice(0,10);
