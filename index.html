@@ -1330,8 +1330,13 @@ function renderKPIs() {
   // Conta clientes únicos pelo nome_original (evita duplicar clientes com 2 portais/projetos)
   const nGold     = new Set(FILTERED.filter(u => u.categoria==='Gold').map(u     => u.nome_original || u.nome)).size;
   const nPrata    = new Set(FILTERED.filter(u => u.categoria==='Prata').map(u    => u.nome_original || u.nome)).size;
-  const nGarantia = new Set(RAW.garantia.map(u => u.nome_original || u.nome)).size;
-  const nUsinas   = RAW.usinas.length;
+  const nGarantia = ONLY_CONECTSOL ? 0
+    : new Set(FILTERED.filter(u => u.categoria==='Garantia').map(u => u.nome_original || u.nome)).size;
+  // Usinas Conectsol: filtra por portal quando selecionado, senão mostra total
+  const portalSel = document.getElementById('f-portal') ? document.getElementById('f-portal').value : '';
+  const nUsinas   = portalSel
+    ? RAW.usinas.filter(u => u.plataforma === portalSel).length
+    : RAW.usinas.length;
 
   // Performance: todas as usinas entram no cálculo (ger_dia||0 para as sem dado)
   const comGerDia  = FILTERED.filter(u => u.ger_dia_kwh !== null && u.capacidade_kwp > 0);
@@ -1924,11 +1929,12 @@ function renderInsights() {
     `<tr><td>${shortName(u.nome)}</td><td>${statusBadge(u.status)}</td><td style="color:var(--text-muted)">${u.plataforma||'—'}</td></tr>`
   ).join('') || '<tr><td colspan="3" style="color:var(--ok);text-align:center">✓ Todas com monitoramento</td></tr>';
 
-  // Planos — usa RAW.garantia diretamente (aba separada)
-  const nG   = new Set(RAW.gold.map(u => u.nome_original || u.nome)).size;
-  const nP   = new Set(RAW.prata.map(u => u.nome_original || u.nome)).size;
-  const nGar = new Set(RAW.garantia.map(u => u.nome_original || u.nome)).size;
-  const nU   = RAW.usinas.length;
+  // Planos — usa FILTERED para respeitar filtros de portal/categoria
+  const portalSel = document.getElementById('f-portal') ? document.getElementById('f-portal').value : '';
+  const nG   = new Set(FILTERED.filter(u => u.categoria==='Gold').map(u => u.nome_original || u.nome)).size;
+  const nP   = new Set(FILTERED.filter(u => u.categoria==='Prata').map(u => u.nome_original || u.nome)).size;
+  const nGar = new Set(FILTERED.filter(u => u.categoria==='Garantia').map(u => u.nome_original || u.nome)).size;
+  const nU   = portalSel ? RAW.usinas.filter(u => u.plataforma === portalSel).length : RAW.usinas.length;
   const nSem = Math.max(0, nU - RAW.gold.filter(u=>u.is_conectsol).length - RAW.prata.filter(u=>u.is_conectsol).length);
   document.getElementById('ins-planos').innerHTML = `
     <div style="display:flex;gap:16px;flex-wrap:wrap;">
