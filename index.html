@@ -853,6 +853,8 @@ const IRRAD_ANUAL  = IRRAD_MENSAL * 12; // 1560 kWh/kWp/ano
 let STATUS_FILTER = new Set(); // vazio = todos ativos
 // Fator de geração esperada para o período ativo (atualizado em applyFilters)
 let PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL / 30;
+// Número de dias do período ativo — usado com prognostico_kwh/dia para Usinas Conectsol
+let PERIOD_N_DAYS = 1;
 // Aliases de portal: normaliza nomes de fabricante para o portal real
 const PORTAL_ALIASES = { 'SUNGROW': 'iSolarCloud', 'Sungrow': 'iSolarCloud', 'sungrow': 'iSolarCloud' };
 let ONLY_CONECTSOL = false;
@@ -923,6 +925,7 @@ const COL_ALIASES = {
   sincronizado:   ['sincronizado','atualizado','ultima_sincronizacao'],
   categoria:      ['categoria'],
   confianca:      ['confianca','confianca_match'],
+  prog_diario_kwh:['prog_diario_kwh','prognostico_kwh_dia','prognostico_kwhdia'],
   nome_original:  ['nome_original','nomeoriginal'],  // cliente único — ignora split multi-portal/multi-plant
 };
 
@@ -1018,6 +1021,7 @@ function rowsToObjects(rows, categoria) {
       mar_mwh:        toKwh(parseNum(col(r, colMap, 'mar_mwh')), 'mwh'),
       abr_mwh:        toKwh(parseNum(col(r, colMap, 'abr_mwh')), 'mwh'),
       confianca:      col(r, colMap, 'confianca') || '',
+      prog_diario_kwh:parseNum(col(r, colMap, 'prog_diario_kwh')),
       sincronizado:   col(r, colMap, 'sincronizado') || col(r, colMap, 'data') || '',
       categoria:      categoria || col(r, colMap, 'categoria') || '',
       nome_original:  col(r, colMap, 'nome_original') || '',
@@ -1371,12 +1375,16 @@ function applyFilters() {
   const now = new Date();
   if (period === '7d') {
     PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL / 30 * 7;
+    PERIOD_N_DAYS = 7;
   } else if (period === 'mes') {
     PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL * (now.getDate() / 30);
+    PERIOD_N_DAYS = now.getDate();
   } else if (period === 'mes-ant') {
     PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL;
+    PERIOD_N_DAYS = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
   } else {
     PERIOD_EXPECTED_FACTOR = IRRAD_MENSAL / 30; // hoje / todos
+    PERIOD_N_DAYS = 1;
   }
 
   // Períodos históricos: agrega do Histórico (se disponível)
@@ -1455,9 +1463,14 @@ function renderKPIs() {
     ? RAW.usinas.filter(u => u.plataforma === portalSel).length
     : RAW.usinas.length;
 
-  // Performance: todas as usinas entram no cálculo (ger_dia||0 para as sem dado)
-  const comGerDia  = FILTERED.filter(u => u.ger_dia_kwh !== null && u.capacidade_kwp > 0);
-  const perf       = total_cap > 0 ? (total_ger / (total_cap * PERIOD_EXPECTED_FACTOR)) * 100 : 0;
+  // Performance: usa prognostico_kwh/dia quando ONLY_CONECTSOL, senão irradiância × capacidade
+  const comGerDia = FILTERED.filter(u => u.ger_dia_kwh !== null && u.capacidade_kwp > 0);
+  const total_prog_diario = ONLY_CONECTSOL
+    ? FILTERED.reduce((s, u) => s + (u.prog_diario_kwh || 0), 0)
+    : 0;
+  const perf = (ONLY_CONECTSOL && total_prog_diario > 0)
+    ? (total_ger / (total_prog_diario * PERIOD_N_DAYS)) * 100
+    : (total_cap > 0 ? (total_ger / (total_cap * PERIOD_EXPECTED_FACTOR)) * 100 : 0);
 
   document.getElementById('kpi-ger-dia').textContent     = fmt(total_ger);
   document.getElementById('kpi-ger-dia-sub').textContent = `${FILTERED.length} usinas monitoradas`;
